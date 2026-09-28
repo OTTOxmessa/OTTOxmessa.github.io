@@ -1,0 +1,52 @@
+import { describe, expect, it } from "vitest";
+import { contactSchema, localizedSchema, projectMetaSchema, slugSchema } from "./index";
+
+const base = {
+  title: "ระบบจอง",
+  summary: { th: "สรุป", en: "Summary" },
+  role: "Backend",
+  year: 2026,
+  status: "done",
+  layers: ["backend"],
+  stack: ["Express"],
+};
+
+describe("localizedSchema", () => {
+  it("uses Thai text as English fallback", () => {
+    expect(localizedSchema.parse("สวัสดี")).toEqual({ th: "สวัสดี", en: "สวัสดี" });
+    expect(localizedSchema.parse({ th: "ก" })).toEqual({ th: "ก", en: "ก" });
+  });
+});
+
+describe("projectMetaSchema", () => {
+  it("applies defaults", () => {
+    const p = projectMetaSchema.parse(base);
+    expect(p.published).toBe(true);
+    expect(p.featured).toBe(false);
+    expect(p.links).toEqual({});
+  });
+
+  it("rejects unknown layers", () => {
+    expect(projectMetaSchema.safeParse({ ...base, layers: ["mobile"] }).success).toBe(false);
+  });
+
+  it("rejects summaries over 200 characters", () => {
+    expect(projectMetaSchema.safeParse({ ...base, summary: "x".repeat(201) }).success).toBe(false);
+  });
+
+  it("rejects invalid links", () => {
+    expect(projectMetaSchema.safeParse({ ...base, links: { github: "not a url" } }).success).toBe(false);
+  });
+});
+
+describe("slugSchema", () => {
+  it.each(["resort-booking", "a1"])("accepts %s", (s) => expect(slugSchema.safeParse(s).success).toBe(true));
+  it.each(["Resort", "a_b", "-a", "a--b"])("rejects %s", (s) => expect(slugSchema.safeParse(s).success).toBe(false));
+});
+
+describe("contactSchema", () => {
+  it("validates email and body length", () => {
+    expect(contactSchema.safeParse({ name: "A", email: "x", body: "hello world!" }).success).toBe(false);
+    expect(contactSchema.safeParse({ name: "A", email: "a@b.co", body: "hello world!" }).success).toBe(true);
+  });
+});
