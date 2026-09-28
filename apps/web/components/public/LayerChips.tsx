@@ -3,7 +3,7 @@ import { T } from "./T";
 
 export function LayerChips({ layers }: { layers: LayerId[] }) {
   return (
-    <ul className="layer-chips">
+    <ul className="tag-list">
       {layers.map((id) => {
         const layer = LAYERS.find((l) => l.id === id);
         return (

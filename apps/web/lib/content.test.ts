@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CONTENT_DIR, getProfile, getSkillGroups, loadProjects } from "./content";
+import { CONTENT_DIR, getAreas, getProfile, getSkillGroups, getStats, loadProjects } from "./content";
 
 describe("real content in /content", () => {
   it("every project file passes the schema", () => {
@@ -14,6 +14,16 @@ describe("real content in /content", () => {
   it("profile and skills are valid", () => {
     expect(getProfile().email).toContain("@");
     expect(getSkillGroups().length).toBeGreaterThan(0);
+  });
+
+  it("areas reference existing skill groups", () => {
+    for (const a of getAreas()) expect(a.skills.length).toBeGreaterThan(0);
+  });
+
+  it("stats are derived from published projects", () => {
+    const s = getStats();
+    expect(s.projects).toBeGreaterThanOrEqual(s.shipped);
+    expect(s.layers).toBeGreaterThan(0);
   });
 
   it("CONTENT_DIR points at the repo content folder", () => {
@@ -57,5 +67,12 @@ describe("loadProjects", () => {
   it("rejects folder names that are not valid slugs", () => {
     const dir = tmpContent({ "projects/Bad_Name/index.md": fm() });
     expect(() => loadProjects(dir)).toThrow(/Bad_Name/);
+  });
+});
+
+describe("renderMarkdown", () => {
+  it("makes code blocks keyboard-focusable", async () => {
+    const { renderMarkdown } = await import("./content");
+    expect(renderMarkdown("```\nx\n```")).toContain('<pre tabindex="0">');
   });
 });

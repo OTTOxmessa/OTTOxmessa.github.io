@@ -50,3 +50,18 @@ describe("contactSchema", () => {
     expect(contactSchema.safeParse({ name: "A", email: "a@b.co", body: "hello world!" }).success).toBe(true);
   });
 });
+
+describe("snippet & metric", () => {
+  it("accepts optional snippet and metric", () => {
+    const p = projectMetaSchema.parse({
+      ...base,
+      snippet: { file: "a.ts", code: "x()" },
+      metric: { label: "TEAM", value: "6" },
+    });
+    expect(p.metric?.value).toBe("6");
+  });
+
+  it("rejects metric values that would overflow the badge", () => {
+    expect(projectMetaSchema.safeParse({ ...base, metric: { label: "TEAM", value: "123456789" } }).success).toBe(false);
+  });
+});

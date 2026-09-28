@@ -1,108 +1,163 @@
 import Link from "next/link";
-import { LayerStrip } from "@/components/public/LayerStrip";
-import { ProjectRow } from "@/components/public/ProjectRow";
+import { CaseCard } from "@/components/public/CaseCard";
+import { CaseLibrary } from "@/components/public/CaseLibrary";
+import { CodeWindow } from "@/components/public/CodeWindow";
+import { ContactForm } from "@/components/public/ContactForm";
+import { Headline } from "@/components/public/Headline";
 import { T } from "@/components/public/T";
-import { getLayerCounts, getProfile, getProjects, getSkillGroups } from "@/lib/content";
+import { getAreas, getProfile, getProjects, getSkillGroups, getStats } from "@/lib/content";
+
+const HOW_I_WORK = `// how I work
+const stack = {
+  frontend: ['React', 'Next.js'],
+  backend:  ['Express', 'Spring Boot'],
+  database: ['PostgreSQL', 'MongoDB'],
+  infra:    ['Docker', 'GitHub Actions'],
+};
+
+function ship(idea) {
+  const app = build(idea, { stack });
+  assert(app.tests.pass);
+  return deploy(app); // every layer, end to end
+}
+
+ship(nextProject);`;
 
 export default function HomePage() {
   const profile = getProfile();
-  const featured = getProjects({ featured: true });
-  const skills = getSkillGroups();
-  const total = getProjects().length;
+  const projects = getProjects();
+  const stats = getStats();
+  const areas = getAreas();
+  const languages = getSkillGroups().find((g) => g.group === "Languages");
 
   return (
     <>
-      <section className="hero" id="home">
-        <div className="wrap hero-inner">
+      {/* ───────────── HERO ───────────── */}
+      <section className="hero" aria-labelledby="hero-title">
+        <div className="wrap hero-grid">
           <div className="hero-copy">
-            <p className="hero-kicker">$ whoami</p>
-            <h1 className="hero-name"><T text={profile.name} /></h1>
-            <p className="hero-role"><T text={profile.role} /></p>
-            <p className="hero-desc"><T text={profile.intro} /></p>
-            {profile.lookingFor && (
-              <p className="hero-looking">
-                <span className="meta-key">looking for</span> <T text={profile.lookingFor} />
-              </p>
-            )}
+            <p className="eyebrow"><T text={profile.kicker} /></p>
+            <h1 className="display" id="hero-title">
+              <span className="sr-only">{profile.name.en} — </span>
+              <Headline text={profile.headline} />
+            </h1>
+            <p className="lead"><T text={profile.intro} /></p>
+
+            <dl className="stats">
+              <div>
+                <dt><T th="ผลงานทั้งหมด" en="projects built" /></dt>
+                <dd>{stats.projects}</dd>
+              </div>
+              <div>
+                <dt><T th="layer ที่ลงมือทำ" en="layers worked in" /></dt>
+                <dd>{stats.layers}</dd>
+              </div>
+              <div>
+                <dt><T th="ขึ้นใช้งานจริง" en="shipped live" /></dt>
+                <dd>{stats.shipped}</dd>
+              </div>
+            </dl>
+
             <div className="hero-actions">
-              <Link href="/projects/" className="btn btn-primary">
-                <T th={`ดูผลงานทั้งหมด (${total})`} en={`View all projects (${total})`} />
-              </Link>
-              <a href="#contact" className="btn btn-ghost"><T th="ติดต่อ" en="Get in touch" /></a>
-              {profile.resumeUrl && (
-                <a href={profile.resumeUrl} className="btn btn-ghost" target="_blank" rel="noopener noreferrer">
-                  <T th="เรซูเม่" en="Résumé" />
-                </a>
-              )}
+              <a href="#work" className="btn btn-primary"><T th="ดูผลงาน" en="See the work" /></a>
+              <a href="#contact" className="btn-link"><T th="หรือทักมาคุยกัน →" en="or get in touch →" /></a>
             </div>
           </div>
 
-          <div className="hero-layers">
-            <p className="layers-caption">
-              <span className="nav-path">$</span> <T th="ผลงานแยกตาม layer ของระบบ" en="work by system layer" />
+          <div className="hero-code">
+            <CodeWindow file="how-i-work.ts" code={HOW_I_WORK} animate label="how-i-work.ts — code sample" />
+            <p className="code-caption" aria-hidden="true">
+              <T th="พิมพ์ครั้งเดียว ไม่วนซ้ำ — เหมือน build ที่ดี" en="typed once. never loops. like a good build." />
             </p>
-            <LayerStrip counts={getLayerCounts()} />
           </div>
         </div>
       </section>
 
-      <section className="section" id="work">
+      {/* ───────────── WORK ───────────── */}
+      <section className="section" id="work" aria-labelledby="work-title">
         <div className="wrap">
-          <div className="section-head">
-            <h2 className="section-title">
-              <span className="nav-path">~/</span><T th="ผลงานเด่น" en="selected work" />
-            </h2>
-            <Link href="/projects/" className="section-link"><T th="ทั้งหมด →" en="All projects →" /></Link>
-          </div>
-          <div className="project-list">
-            {featured.map((p) => <ProjectRow key={p.slug} project={p} />)}
-          </div>
-        </div>
-      </section>
-
-      <section className="section" id="skills">
-        <div className="wrap">
-          <h2 className="section-title">
-            <span className="nav-path">~/</span><T th="ทักษะ" en="skills" />
+          <p className="eyebrow"><T th="คลังผลงาน" en="Case library" /></p>
+          <h2 className="h2" id="work-title">
+            <T th={`ผลงาน ${stats.projects} ชิ้น แยกตาม layer`} en={`${stats.projects} projects, layer by layer.`} />
           </h2>
-          <dl className="skills-grid">
-            {skills.map((g) => (
-              <div key={g.group} className="skills-group">
-                <dt>{g.group}</dt>
-                <dd>
-                  <ul className="skills-list">
-                    {g.items.map((s) => <li key={s.name}>{s.name}</li>)}
+          <CaseLibrary items={projects.map((p) => ({ slug: p.slug, layers: p.layers, status: p.status }))}>
+            <div className="case-grid">
+              {projects.map((p, i) => <CaseCard key={p.slug} project={p} index={i} />)}
+            </div>
+          </CaseLibrary>
+        </div>
+      </section>
+
+      {/* ───────────── SKILLS ───────────── */}
+      <section className="section" id="skills" aria-labelledby="skills-title">
+        <div className="wrap">
+          <p className="eyebrow"><T th="ทักษะ" en="Skills" /></p>
+          <h2 className="h2" id="skills-title">
+            <T th={`${areas.length} ส่วนของระบบที่ผมทำได้`} en={`${areas.length === 3 ? "Three" : areas.length} parts of the stack I work in.`} />
+          </h2>
+
+          <div className="area-grid">
+            {areas.map((a) => {
+              const featured = a.featured;
+              const titleId = `area-${a.layers.join("-")}`;
+              return (
+                <article key={titleId} className={`area-card${featured ? " is-featured" : ""}`} aria-labelledby={titleId}>
+                  {featured && <p className="area-badge"><T th="ถนัดที่สุด" en="Main focus" /></p>}
+                  <h3 className="area-title" id={titleId}><T text={a.title} /></h3>
+                  <p className="area-desc"><T text={a.description} /></p>
+                  <p className="area-count">
+                    <b>{a.projectCount}</b> <T th="ผลงาน" en={a.projectCount === 1 ? "project" : "projects"} />
+                  </p>
+                  <ul className="area-points">
+                    {a.points.map((pt) => <li key={pt.en}><T text={pt} /></li>)}
                   </ul>
-                </dd>
-              </div>
-            ))}
-          </dl>
+                  <ul className="skill-list" aria-label="Tools">
+                    {a.skills.map((s) => <li key={s.name}>{s.name}</li>)}
+                  </ul>
+                  <Link href={`/projects/?layer=${a.layers[0]}`} className={`btn ${featured ? "btn-primary" : "btn-outline"} btn-block`}>
+                    <T th="ดูผลงานในส่วนนี้" en="See this work" />
+                    <span className="sr-only"> — {a.title.en}</span>
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
+
+          {languages && (
+            <p className="footnote">
+              <T th="ภาษาที่ใช้:" en="Languages:" /> {languages.items.map((s) => s.name).join(" · ")}
+            </p>
+          )}
         </div>
       </section>
 
-      <section className="section contact" id="contact">
-        <div className="wrap">
-          <h2 className="section-title">
-            <span className="nav-path">~/</span><T th="ติดต่อ" en="contact" />
-          </h2>
-          <p className="contact-lead">
-            <T
-              th="สนใจร่วมงาน รับฝึกงาน หรืออยากคุยเรื่องโปรเจกต์ ทักมาได้เลย"
-              en="Open to internships, collaborations, or just a chat about a project — reach out."
-            />
-          </p>
-          <div className="contact-links">
-            <a className="contact-link" href={`mailto:${profile.email}`}>
-              <span className="contact-key">email</span>
-              <span className="contact-val">{profile.email}</span>
-            </a>
-            {profile.links.map((l) => (
-              <a key={l.url} className="contact-link" href={l.url} target="_blank" rel="noopener noreferrer">
-                <span className="contact-key">{l.label}</span>
-                <span className="contact-val">{l.url.replace(/^https?:\/\//, "")}</span>
-              </a>
-            ))}
+      {/* ───────────── CONTACT ───────────── */}
+      <section className="section" id="contact" aria-labelledby="contact-title">
+        <div className="wrap contact-grid">
+          <div className="contact-copy">
+            <p className="eyebrow"><T th="ติดต่อ" en="Contact" /></p>
+            <h2 className="h2" id="contact-title">
+              <T th="อยากสร้างอะไร บอกผมได้เลย" en="Tell me what you want to build." />
+            </h2>
+            <p className="lead lead--sm">
+              <T
+                th="ฝึกงาน งานพาร์ทไทม์ ชวนทำโปรเจกต์ หรือแค่อยากถามเรื่องผลงาน — ทักมาได้ทุกเรื่อง"
+                en="Internships, part-time roles, a project idea, or a question about my work — all good starting points."
+              />
+            </p>
+            <p><a className="email-link" href={`mailto:${profile.email}`}>{profile.email}</a></p>
+            <ul className="social-list">
+              {profile.links.map((l) => (
+                <li key={l.url}>
+                  <a href={l.url} target="_blank" rel="noopener noreferrer">
+                    {l.label} <span aria-hidden="true">↗</span>
+                    <span className="sr-only"> (เปิดแท็บใหม่ / opens in new tab)</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
+          <ContactForm email={profile.email} />
         </div>
       </section>
     </>

@@ -22,6 +22,14 @@ export const projectMetaSchema = z.object({
     .object({ github: z.url().optional(), demo: z.url().optional() })
     .default({}),
   cover: z.string().optional(),
+  /** โค้ดตัวอย่างที่แสดงในหน้าต่างโค้ดบนการ์ดผลงาน */
+  snippet: z
+    .object({ file: z.string().min(1), code: z.string().min(1).max(600) })
+    .optional(),
+  /** ตัวเลขเด่นของผลงาน เช่น { label: "TEAM", value: "6" } */
+  metric: z
+    .object({ label: z.string().min(1).max(10), value: z.string().min(1).max(8) })
+    .optional(),
   featured: z.boolean().default(false),
   order: z.number().int().default(100),
   published: z.boolean().default(true),

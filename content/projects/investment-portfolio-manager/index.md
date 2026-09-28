@@ -10,6 +10,15 @@ layers: [frontend, backend, database]
 stack: [Java, Spring Boot, React, Yahoo Finance API]
 featured: true
 order: 3
+snippet:
+  file: RebalanceController.java
+  code: |
+    // สัดส่วนเพี้ยนจากเป้า → แนะนำการ rebalance
+    @GetMapping("/portfolios/{id}/rebalance")
+    public List<Trade> rebalance(@PathVariable Long id) {
+      return rebalancer.suggest(portfolios.get(id));
+    }
+metric: { label: "FEATURES", value: "5" }
 ---
 
 ## ภาพรวม

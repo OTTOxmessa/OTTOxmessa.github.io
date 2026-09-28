@@ -1,0 +1,93 @@
+[
+  {
+    "title": "Frontend",
+    "description": {
+      "th": "หน้าเว็บที่ใช้ง่าย อ่านง่าย และใช้ได้ทั้งมือถือและคีย์บอร์ด",
+      "en": "Interfaces that are easy to use and read, on phones and keyboards alike."
+    },
+    "layers": [
+      "frontend"
+    ],
+    "skillGroups": [
+      "Frontend"
+    ],
+    "points": [
+      {
+        "th": "Component แยกส่วน นำกลับมาใช้ได้",
+        "en": "Reusable, well-scoped components"
+      },
+      {
+        "th": "Responsive + รองรับการเข้าถึง (a11y)",
+        "en": "Responsive and accessible by default"
+      },
+      {
+        "th": "สองภาษา ไทย / อังกฤษ",
+        "en": "Bilingual Thai / English UIs"
+      }
+    ]
+  },
+  {
+    "title": {
+      "th": "Backend & Database",
+      "en": "Backend & Database"
+    },
+    "description": {
+      "th": "API ที่แบ่ง module ชัดเจน และออกแบบฐานข้อมูลให้ตรงกับงาน",
+      "en": "APIs split into clear modules, with data models that fit the job."
+    },
+    "layers": [
+      "backend",
+      "database"
+    ],
+    "skillGroups": [
+      "Backend",
+      "Database"
+    ],
+    "points": [
+      {
+        "th": "REST API + JWT / OTP authentication",
+        "en": "REST APIs with JWT / OTP auth"
+      },
+      {
+        "th": "SQL (PostgreSQL) และ NoSQL (MongoDB aggregation)",
+        "en": "SQL (PostgreSQL) and NoSQL (MongoDB aggregation)"
+      },
+      {
+        "th": "Validate ข้อมูลทุก request",
+        "en": "Every request validated"
+      }
+    ],
+    "featured": true
+  },
+  {
+    "title": {
+      "th": "Deploy & Systems",
+      "en": "Deploy & Systems"
+    },
+    "description": {
+      "th": "เอาระบบขึ้นใช้งานจริง และเข้าใจสิ่งที่เกิดขึ้นใต้ระบบปฏิบัติการ",
+      "en": "Getting systems into production, and understanding what runs underneath."
+    },
+    "layers": [
+      "infra",
+      "systems"
+    ],
+    "skillGroups": [
+      "Tools & Infra"
+    ],
+    "points": [
+      {
+        "th": "CI/CD ด้วย GitHub Actions",
+        "en": "CI/CD with GitHub Actions"
+      },
+      {
+        "th": "Deploy บน Render, GitHub Pages, cloud storage",
+        "en": "Deploys on Render, GitHub Pages, cloud storage"
+      },
+      {
+        "th": "Linux system call: fork, execve, seccomp",
+        "en": "Linux syscalls: fork, execve, seccomp"
+      }
+    ]
+  }
+]

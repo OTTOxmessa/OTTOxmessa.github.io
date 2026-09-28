@@ -13,6 +13,8 @@ import {
   type Profile,
   type Project,
   type Skill,
+  type Area,
+  areaListSchema,
   profileSchema,
   projectMetaSchema,
   skillListSchema,
@@ -95,12 +97,41 @@ export function getSkillGroups(): { group: string; items: Skill[] }[] {
   return [...groups].map(([group, items]) => ({ group, items: items.sort((a, b) => a.order - b.order) }));
 }
 
-/** จำนวนผลงานต่อ layer — ใช้ในแผนภาพ layer หน้าแรก */
+/** จำนวนผลงานต่อ layer */
 export function getLayerCounts(): { id: LayerId; count: number }[] {
   const published = getProjects();
   return LAYERS.map((l) => ({ id: l.id, count: published.filter((p) => p.layers.includes(l.id)).length }));
 }
 
+/** ตัวเลขใน hero — คำนวณจากข้อมูลจริงทั้งหมด ไม่ต้องแก้มือ */
+export function getStats() {
+  const published = getProjects();
+  return {
+    projects: published.length,
+    shipped: published.filter((p) => p.status === "done").length,
+    layers: getLayerCounts().filter((l) => l.count > 0).length,
+  };
+}
+
+export type AreaWithSkills = Area & { skills: Skill[]; projectCount: number };
+
+export function getAreas(): AreaWithSkills[] {
+  const parsed = areaListSchema.safeParse(readJson("areas.json"));
+  if (!parsed.success) throw formatIssues("areas.json", parsed.error);
+  const groups = getSkillGroups();
+  const published = getProjects();
+  return parsed.data.map((a) => {
+    const missing = a.skillGroups.filter((g) => !groups.some((x) => x.group === g));
+    if (missing.length) throw new Error(`areas.json อ้างถึงกลุ่มทักษะที่ไม่มีใน skills.json: ${missing.join(", ")}`);
+    return {
+      ...a,
+      skills: groups.filter((g) => a.skillGroups.includes(g.group)).flatMap((g) => g.items),
+      projectCount: published.filter((p) => p.layers.some((l) => a.layers.includes(l))).length,
+    };
+  });
+}
+
 export function renderMarkdown(md: string): string {
-  return marked.parse(md, { async: false });
+  // <pre> ที่เลื่อนแนวนอนได้ต้องโฟกัสด้วยคีย์บอร์ดได้ (WCAG 2.1.1)
+  return marked.parse(md, { async: false }).replace(/<pre>/g, '<pre tabindex="0">');
 }

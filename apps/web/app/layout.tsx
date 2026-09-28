@@ -17,8 +17,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0E1826" },
-    { media: "(prefers-color-scheme: light)", color: "#F3F6F9" },
+    { media: "(prefers-color-scheme: dark)", color: "#121412" },
+    { media: "(prefers-color-scheme: light)", color: "#FAFAF8" },
   ],
 };
 
@@ -27,22 +27,21 @@ const bootScript = `(function(){try{var d=document.documentElement;var l=localSt
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="th" data-lang="th" data-theme="dark" suppressHydrationWarning>
+    <html lang="th" data-lang="th" data-theme="light" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: bootScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap"
         />
       </head>
-      <body>
+      <body id="top">
         <a className="skip-link" href="#main">
           <span className="i18n-th">ข้ามไปยังเนื้อหาหลัก</span>
           <span className="i18n-en">Skip to main content</span>
         </a>
-        <div className="grid-backdrop" aria-hidden="true" />
         <Header brand={profile.name.en} />
         <main id="main">{children}</main>
         <Footer name={profile.name.en} />

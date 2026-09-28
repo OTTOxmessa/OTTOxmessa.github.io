@@ -4,6 +4,10 @@ import { localizedSchema } from "./common.schema";
 export const profileSchema = z.object({
   name: localizedSchema,
   role: localizedSchema,
+  /** บรรทัดเล็กเหนือชื่อ เช่น "นักศึกษา CS — ประเทศไทย" */
+  kicker: localizedSchema,
+  /** หัวข้อใหญ่หน้าแรก ใช้ *ข้อความ* เพื่อเน้นสี */
+  headline: localizedSchema,
   intro: localizedSchema,
   lookingFor: localizedSchema.optional(),
   email: z.email(),

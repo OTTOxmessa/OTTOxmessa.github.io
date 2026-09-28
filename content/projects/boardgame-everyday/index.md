@@ -13,6 +13,16 @@ layers: [backend, database]
 stack: [Node.js, Express, MongoDB, Mongoose]
 featured: true
 order: 2
+snippet:
+  file: stats.service.js
+  code: |
+    // เกมที่ถูกเล่นมากที่สุดเดือนนี้
+    Play.aggregate([
+      { $match: { playedAt: { $gte: monthStart } } },
+      { $group: { _id: '$game', plays: { $sum: 1 } } },
+      { $sort: { plays: -1 } }, { $limit: 5 },
+    ]);
+metric: { label: "TEAM", value: "6" }
 ---
 
 ## ภาพรวม

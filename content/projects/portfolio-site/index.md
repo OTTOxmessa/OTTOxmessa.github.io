@@ -11,6 +11,15 @@ stack: [Next.js, TypeScript, Zod, pnpm workspaces, Vitest, GitHub Actions, GitHu
 links:
   github: https://github.com/OTTOxmessa/OTTOxmessa.github.io
 order: 5
+snippet:
+  file: .github/workflows/ci.yml
+  code: |
+    # ทุก push ขึ้น main
+    - run: pnpm lint
+    - run: pnpm typecheck
+    - run: pnpm test
+    - run: pnpm build # → GitHub Pages
+metric: { label: "DEPLOY", value: "auto" }
 ---
 
 ## ภาพรวม

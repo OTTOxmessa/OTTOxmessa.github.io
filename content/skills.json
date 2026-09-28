@@ -17,5 +17,6 @@
   { "group": "Database", "name": "MongoDB", "order": 2 },
   { "group": "Tools & Infra", "name": "Git / GitHub", "order": 1 },
   { "group": "Tools & Infra", "name": "Docker", "order": 2 },
-  { "group": "Tools & Infra", "name": "GitHub Actions", "order": 3 }
+  { "group": "Tools & Infra", "name": "GitHub Actions", "order": 3 },
+  { "group": "Tools & Infra", "name": "Linux", "order": 4 }
 ]

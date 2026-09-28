@@ -21,8 +21,9 @@ portfolio/
 │   └── lib/content.ts           # ★ จุดเดียวที่อ่านข้อมูล (ตอนนี้อ่านไฟล์, อนาคตเปลี่ยนเป็น API)
 ├── packages/shared/             # Zod schemas + LAYERS ใช้ร่วมกันทุก app
 ├── content/                     # ★ ข้อมูลทั้งหมดของเว็บ — แก้ตรงนี้
-│   ├── profile.json
-│   ├── skills.json
+│   ├── profile.json            # ชื่อ, kicker, headline (*คำ* = เน้นสี), intro, อีเมล, ลิงก์
+│   ├── skills.json             # รายการทักษะ แบ่งตาม group
+│   ├── areas.json              # การ์ด "ทักษะ" 3 ใบในหน้าแรก (อ้างถึง group ใน skills.json)
 │   └── projects/<slug>/
 │       ├── index.md             # frontmatter + เนื้อหาภาษาไทย
 │       └── en.md                # เนื้อหาภาษาอังกฤษ (ไม่ใส่ก็ได้ จะใช้ภาษาไทยแทน)
@@ -59,7 +60,12 @@ stack: [React, Express, MongoDB]
 links:
   github: https://github.com/...
   demo: https://...
-featured: true        # แสดงในหน้าแรก
+featured: true        # (สำรองไว้ใช้ต่อ) ตอนนี้หน้าแรกแสดงทุกผลงาน
+snippet:              # หน้าต่างโค้ดบนการ์ด (ไม่บังคับ, ไม่เกิน 600 ตัวอักษร)
+  file: server/app.js
+  code: |
+    app.use('/api/auth', authRoutes);
+metric: { label: "TEAM", value: "6" }   # ป้ายตัวเลขบนการ์ด (ไม่บังคับ)
 order: 1              # เลขน้อยแสดงก่อน
 published: true       # false = draft ไม่แสดงบนเว็บ
 ---
@@ -75,9 +81,24 @@ published: true       # false = draft ไม่แสดงบนเว็บ
 
 > แก้ได้จากหน้าเว็บ GitHub โดยตรง (กดไฟล์ → ✏️ Edit → Commit) ไม่ต้องเปิดคอมก็อัปเดตผลงานได้
 
+**ตัวเลขใน hero** (ผลงานทั้งหมด / layer / ขึ้นใช้งานจริง) คำนวณจากไฟล์ผลงานอัตโนมัติ — ไม่ต้องแก้มือ
+
 **เพิ่ม layer ใหม่** (เช่น mobile): เพิ่มใน `packages/shared/src/constants/layers.ts` แล้วเพิ่มสี `--layer-mobile` และ `[data-layer="mobile"]` ใน `apps/web/app/globals.css`
 
 ---
+
+## การเข้าถึง (Accessibility)
+
+ออกแบบให้ผ่าน WCAG 2.2 AA — ตรวจด้วย axe-core ทั้ง 2 ธีม × 2 ภาษา × desktop/mobile ได้ 0 violation
+
+- สีทุกคู่ contrast ≥ 4.5:1, ขอบช่องกรอก ≥ 3:1, รองรับ `prefers-contrast: more`
+- ใช้งานด้วยคีย์บอร์ดได้ทั้งหมด: skip link, focus ring ชัด, ปุ่มกรองใช้ `aria-pressed`, `Esc` ปิดเมนูมือถือ
+- ปุ่ม/ลิงก์สูง ≥ 44px, ไม่ล้นจอที่ความกว้าง 320px (ซูม 400%)
+- ฟอร์มมี label ทุกช่อง, แจ้ง error ด้วย `role="alert"` และย้าย focus ไปช่องที่ผิด
+- แอนิเมชันพิมพ์โค้ดปิดเองเมื่อผู้ใช้ตั้ง "ลดการเคลื่อนไหว" (reduce motion)
+- ภาษาไทยไม่ใช้ letter-spacing และใส่ `lang` ถูกต้อง ให้ screen reader อ่านสำเนียงถูก
+- จำนวนผลงานที่กรองแล้วประกาศผ่าน `aria-live`
+- ฟอร์มติดต่อเปิดแอปอีเมล (เพราะเว็บ static ไม่มี server) และมีปุ่มคัดลอกอีเมลสำรอง
 
 ## Deploy ขึ้น GitHub Pages
 

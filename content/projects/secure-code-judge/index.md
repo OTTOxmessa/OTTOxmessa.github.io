@@ -10,6 +10,15 @@ status: in-progress
 layers: [systems]
 stack: [C, Linux, fork/execve, setrlimit, seccomp, signals]
 order: 4
+snippet:
+  file: sandbox.c
+  code: |
+    // process ลูก: จำกัด → กรอง → รัน
+    struct rlimit cpu = { .rlim_cur = 1, .rlim_max = 1 };
+    setrlimit(RLIMIT_CPU, &cpu);
+    seccomp_load(filter); // block socket, ptrace ...
+    execve(path, argv, envp);
+metric: { label: "SYSCALLS", value: "5" }
 ---
 
 ## ภาพรวม

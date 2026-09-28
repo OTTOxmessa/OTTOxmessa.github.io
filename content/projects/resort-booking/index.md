@@ -13,6 +13,15 @@ links:
   demo: https://resort-system-jo00.onrender.com/home.html
 featured: true
 order: 1
+snippet:
+  file: server/app.js
+  code: |
+    // หนึ่ง router ต่อหนึ่งฟีเจอร์
+    app.use('/api/auth', authRoutes);    // JWT + OTP
+    app.use('/api/booking', bookingRoutes);
+    app.use('/api/room', roomRoutes);
+    app.use('/api/upload', uploadRoutes); // → GCS
+metric: { label: "ROUTES", value: "10" }
 ---
 
 ## ภาพรวม

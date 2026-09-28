@@ -1,13 +1,21 @@
 {
   "name": "OTTO",
+  "kicker": {
+    "th": "นักศึกษาวิทยาการคอมพิวเตอร์ — Full-stack Developer",
+    "en": "Computer Science student — Full-stack Developer"
+  },
+  "headline": {
+    "th": "ผมสร้างระบบ *ครบทุก layer*",
+    "en": "I build software across *every layer*."
+  },
   "role": {
     "th": "นักศึกษาวิทยาการคอมพิวเตอร์ · Full-stack Developer",
     "en": "Computer Science student · Full-stack Developer"
   },
   "intro": {
-    "th": "ผมชอบเรียนรู้ผ่านการลงมือสร้างจริง ตั้งแต่หน้าเว็บที่ผู้ใช้เห็น API และฐานข้อมูลเบื้องหลัง ไปจนถึงการ deploy ขึ้นใช้งานจริง ผลงานแต่ละชิ้นด้านล่างระบุชัดว่าผมรับผิดชอบ layer ไหนของระบบ",
-    "en": "I learn by building — from the UI users see, to the APIs and databases behind it, all the way to shipping it to production. Each project below shows exactly which layers of the system I owned."
+    "th": "ตั้งแต่หน้าเว็บที่ผู้ใช้เห็น API และฐานข้อมูลเบื้องหลัง ไปจนถึงการ deploy ขึ้นใช้งานจริง ผลงานแต่ละชิ้นด้านล่างบอกชัดว่าผมรับผิดชอบส่วนไหนของระบบ",
+    "en": "From the UI people touch, to the APIs and databases behind it, to shipping it to production. Every project below says exactly which part of the system I owned."
   },
   "email": "ote13022546@gmail.com",
-  "links": [{ "label": "github", "url": "https://github.com/OTTOxmessa" }]
+  "links": [{ "label": "GitHub", "url": "https://github.com/OTTOxmessa" }]
 }
