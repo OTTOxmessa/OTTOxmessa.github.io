@@ -13,8 +13,6 @@ import {
   type Profile,
   type Project,
   type Skill,
-  type Area,
-  areaListSchema,
   profileSchema,
   projectMetaSchema,
   skillListSchema,
@@ -89,6 +87,12 @@ export function getProfile(): Profile {
   return parsed.data;
 }
 
+export function getSkills(): Skill[] {
+  const parsed = skillListSchema.safeParse(readJson("skills.json"));
+  if (!parsed.success) throw formatIssues("skills.json", parsed.error);
+  return parsed.data;
+}
+
 export function getSkillGroups(): { group: string; items: Skill[] }[] {
   const parsed = skillListSchema.safeParse(readJson("skills.json"));
   if (!parsed.success) throw formatIssues("skills.json", parsed.error);
@@ -111,24 +115,6 @@ export function getStats() {
     shipped: published.filter((p) => p.status === "done").length,
     layers: getLayerCounts().filter((l) => l.count > 0).length,
   };
-}
-
-export type AreaWithSkills = Area & { skills: Skill[]; projectCount: number };
-
-export function getAreas(): AreaWithSkills[] {
-  const parsed = areaListSchema.safeParse(readJson("areas.json"));
-  if (!parsed.success) throw formatIssues("areas.json", parsed.error);
-  const groups = getSkillGroups();
-  const published = getProjects();
-  return parsed.data.map((a) => {
-    const missing = a.skillGroups.filter((g) => !groups.some((x) => x.group === g));
-    if (missing.length) throw new Error(`areas.json อ้างถึงกลุ่มทักษะที่ไม่มีใน skills.json: ${missing.join(", ")}`);
-    return {
-      ...a,
-      skills: groups.filter((g) => a.skillGroups.includes(g.group)).flatMap((g) => g.items),
-      projectCount: published.filter((p) => p.layers.some((l) => a.layers.includes(l))).length,
-    };
-  });
 }
 
 export function renderMarkdown(md: string): string {

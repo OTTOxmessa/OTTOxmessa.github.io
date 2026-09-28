@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Footer } from "@/components/public/Footer";
 import { Header } from "@/components/public/Header";
+import { Reveal } from "@/components/public/Reveal";
 import { getProfile } from "@/lib/content";
 import { SITE_URL, BASE_PATH } from "@/lib/site";
 import "./globals.css";
@@ -23,7 +24,7 @@ export const viewport: Viewport = {
 };
 
 /** ตั้งภาษา/ธีมก่อนหน้าเว็บวาด เพื่อไม่ให้กะพริบ */
-const bootScript = `(function(){try{var d=document.documentElement;var l=localStorage.getItem("lang");if(l==="en"||l==="th"){d.dataset.lang=l;d.lang=l}var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"}d.dataset.theme=t}catch(e){}})();`;
+const bootScript = `(function(){var d=document.documentElement;d.classList.add("js");try{var l=localStorage.getItem("lang");if(l==="en"||l==="th"){d.dataset.lang=l;d.lang=l}var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"}d.dataset.theme=t}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header brand={profile.name.en} />
         <main id="main">{children}</main>
         <Footer name={profile.name.en} />
+        <Reveal />
       </body>
     </html>
   );

@@ -16,7 +16,8 @@ function store(key: string, value: string) {
 
 const NAV = [
   { href: "/#work", th: "ผลงาน", en: "Work" },
-  { href: "/#skills", th: "ทักษะ", en: "Skills" },
+  { href: "/#lab", th: "Lab", en: "Lab" },
+  { href: "/#toolbox", th: "เครื่องมือ", en: "Toolbox" },
   { href: "/#contact", th: "ติดต่อ", en: "Contact" },
 ];
 
@@ -62,6 +63,7 @@ export function Header({ brand }: { brand: string }) {
     <header className="site-header">
       <div className="wrap header-inner">
         <Link className="brand" href="/">
+          <span className="brand-mark" aria-hidden="true">{brand.slice(0, 1)}</span>
           {brand}
           <span className="sr-only"> — home</span>
         </Link>

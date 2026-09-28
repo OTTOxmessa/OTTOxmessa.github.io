@@ -1,22 +1,121 @@
 [
-  { "group": "Languages", "name": "JavaScript", "order": 1 },
-  { "group": "Languages", "name": "TypeScript", "order": 2 },
-  { "group": "Languages", "name": "Python", "order": 3 },
-  { "group": "Languages", "name": "Java", "order": 4 },
-  { "group": "Languages", "name": "C", "order": 5 },
-  { "group": "Languages", "name": "C#", "order": 6 },
-  { "group": "Languages", "name": "SQL", "order": 7 },
-  { "group": "Frontend", "name": "React", "order": 1 },
-  { "group": "Frontend", "name": "Next.js", "order": 2 },
-  { "group": "Frontend", "name": "Vue.js", "order": 3 },
-  { "group": "Frontend", "name": "HTML / CSS", "order": 4 },
-  { "group": "Backend", "name": "Node.js", "order": 1 },
-  { "group": "Backend", "name": "Express", "order": 2 },
-  { "group": "Backend", "name": "Spring Boot", "order": 3 },
-  { "group": "Database", "name": "PostgreSQL", "order": 1 },
-  { "group": "Database", "name": "MongoDB", "order": 2 },
-  { "group": "Tools & Infra", "name": "Git / GitHub", "order": 1 },
-  { "group": "Tools & Infra", "name": "Docker", "order": 2 },
-  { "group": "Tools & Infra", "name": "GitHub Actions", "order": 3 },
-  { "group": "Tools & Infra", "name": "Linux", "order": 4 }
+  {
+    "group": "Languages",
+    "name": "JavaScript",
+    "order": 1
+  },
+  {
+    "group": "Languages",
+    "name": "TypeScript",
+    "order": 2
+  },
+  {
+    "group": "Languages",
+    "name": "Python",
+    "order": 3
+  },
+  {
+    "group": "Languages",
+    "name": "Java",
+    "order": 4
+  },
+  {
+    "group": "Languages",
+    "name": "C",
+    "order": 5,
+    "layer": "systems"
+  },
+  {
+    "group": "Languages",
+    "name": "C#",
+    "order": 6
+  },
+  {
+    "group": "Languages",
+    "name": "SQL",
+    "order": 7
+  },
+  {
+    "group": "Frontend",
+    "name": "React",
+    "order": 1,
+    "layer": "frontend"
+  },
+  {
+    "group": "Frontend",
+    "name": "Next.js",
+    "order": 2,
+    "layer": "frontend"
+  },
+  {
+    "group": "Frontend",
+    "name": "Vue.js",
+    "order": 3,
+    "layer": "frontend"
+  },
+  {
+    "group": "Frontend",
+    "name": "HTML / CSS",
+    "order": 4,
+    "layer": "frontend"
+  },
+  {
+    "group": "Backend",
+    "name": "Node.js",
+    "order": 1,
+    "layer": "backend"
+  },
+  {
+    "group": "Backend",
+    "name": "Express",
+    "order": 2,
+    "layer": "backend"
+  },
+  {
+    "group": "Backend",
+    "name": "Spring Boot",
+    "order": 3,
+    "layer": "backend"
+  },
+  {
+    "group": "Database",
+    "name": "PostgreSQL",
+    "order": 1,
+    "layer": "database"
+  },
+  {
+    "group": "Database",
+    "name": "MongoDB",
+    "order": 2,
+    "layer": "database"
+  },
+  {
+    "group": "Tools & Infra",
+    "name": "Vitest",
+    "order": 5
+  },
+  {
+    "group": "Tools & Infra",
+    "name": "Git / GitHub",
+    "order": 1,
+    "layer": "infra"
+  },
+  {
+    "group": "Tools & Infra",
+    "name": "Docker",
+    "order": 2,
+    "layer": "infra"
+  },
+  {
+    "group": "Tools & Infra",
+    "name": "GitHub Actions",
+    "order": 3,
+    "layer": "infra"
+  },
+  {
+    "group": "Tools & Infra",
+    "name": "Linux",
+    "order": 4,
+    "layer": "systems"
+  }
 ]

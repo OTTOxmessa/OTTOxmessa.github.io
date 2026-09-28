@@ -65,3 +65,10 @@ describe("snippet & metric", () => {
     expect(projectMetaSchema.safeParse({ ...base, metric: { label: "TEAM", value: "123456789" } }).success).toBe(false);
   });
 });
+
+describe("lab path", () => {
+  it("accepts /lab/<slug>/ only", () => {
+    expect(projectMetaSchema.safeParse({ ...base, lab: "/lab/rebalancer/" }).success).toBe(true);
+    expect(projectMetaSchema.safeParse({ ...base, lab: "https://x.com" }).success).toBe(false);
+  });
+});

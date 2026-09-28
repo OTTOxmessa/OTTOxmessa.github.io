@@ -1,34 +1,33 @@
+import { LAYERS, type LayerId, type Project } from "@portfolio/shared";
 import Link from "next/link";
-import { CaseCard } from "@/components/public/CaseCard";
-import { CaseLibrary } from "@/components/public/CaseLibrary";
-import { CodeWindow } from "@/components/public/CodeWindow";
-import { ContactForm } from "@/components/public/ContactForm";
+import { CopyEmail } from "@/components/public/CopyEmail";
 import { Headline } from "@/components/public/Headline";
+import { LabCard } from "@/components/public/LabCard";
+import { ProjectRow } from "@/components/public/ProjectRow";
+import { StackExplorer, type ExplorerLayer } from "@/components/public/StackExplorer";
 import { T } from "@/components/public/T";
-import { getAreas, getProfile, getProjects, getSkillGroups, getStats } from "@/lib/content";
-
-const HOW_I_WORK = `// how I work
-const stack = {
-  frontend: ['React', 'Next.js'],
-  backend:  ['Express', 'Spring Boot'],
-  database: ['PostgreSQL', 'MongoDB'],
-  infra:    ['Docker', 'GitHub Actions'],
-};
-
-function ship(idea) {
-  const app = build(idea, { stack });
-  assert(app.tests.pass);
-  return deploy(app); // every layer, end to end
-}
-
-ship(nextProject);`;
+import { WorkList } from "@/components/public/WorkList";
+import { getProfile, getProjects, getSkillGroups, getSkills, getStats } from "@/lib/content";
 
 export default function HomePage() {
   const profile = getProfile();
   const projects = getProjects();
+  const labs = projects.filter((p) => p.lab);
   const stats = getStats();
-  const areas = getAreas();
-  const languages = getSkillGroups().find((g) => g.group === "Languages");
+  const skills = getSkills();
+  const groups = getSkillGroups();
+
+  // layer ที่มีผลงานอย่างน้อย 1 ชิ้น — ใช้ทั้งใน Stack Explorer และแถบ layer ของแต่ละผลงาน
+  const used = LAYERS.filter((l) => projects.some((p) => p.layers.includes(l.id)));
+  const scale: LayerId[] = used.map((l) => l.id);
+  const explorer: ExplorerLayer[] = used.map((l) => ({
+    id: l.id,
+    label: l.label,
+    hint: l.hint,
+    projects: projects.filter((p) => p.layers.includes(l.id)).map((p) => ({ slug: p.slug, title: p.title })),
+    tools: skills.filter((s) => s.layer === l.id).map((s) => s.name),
+  }));
+  const busiest = [...explorer].sort((a, b) => b.projects.length - a.projects.length)[0]!.id;
 
   return (
     <>
@@ -36,130 +35,118 @@ export default function HomePage() {
       <section className="hero" aria-labelledby="hero-title">
         <div className="wrap hero-grid">
           <div className="hero-copy">
-            <p className="eyebrow"><T text={profile.kicker} /></p>
+            <p className="eyebrow"><span className="pulse" aria-hidden="true" /> <T text={profile.kicker} /></p>
             <h1 className="display" id="hero-title">
               <span className="sr-only">{profile.name.en} — </span>
               <Headline text={profile.headline} />
             </h1>
             <p className="lead"><T text={profile.intro} /></p>
 
-            <dl className="stats">
-              <div>
-                <dt><T th="ผลงานทั้งหมด" en="projects built" /></dt>
-                <dd>{stats.projects}</dd>
-              </div>
-              <div>
-                <dt><T th="layer ที่ลงมือทำ" en="layers worked in" /></dt>
-                <dd>{stats.layers}</dd>
-              </div>
-              <div>
-                <dt><T th="ขึ้นใช้งานจริง" en="shipped live" /></dt>
-                <dd>{stats.shipped}</dd>
-              </div>
-            </dl>
-
             <div className="hero-actions">
-              <a href="#work" className="btn btn-primary"><T th="ดูผลงาน" en="See the work" /></a>
-              <a href="#contact" className="btn-link"><T th="หรือทักมาคุยกัน →" en="or get in touch →" /></a>
+              <a href="#work" className="btn btn-primary"><T th="ดูผลงาน" en="See my work" /></a>
+              <a href="#lab" className="btn btn-outline"><T th="ลองเล่น Lab" en="Try the Lab" /></a>
             </div>
+
+            <dl className="stats">
+              <div><dt><T th="ผลงาน" en="projects" /></dt><dd>{stats.projects}</dd></div>
+              <div><dt><T th="เดโมให้ลองเล่น" en="live demos" /></dt><dd>{labs.length + projects.filter((p) => p.links.demo).length}</dd></div>
+              <div><dt><T th="layer ที่ลงมือทำ" en="layers touched" /></dt><dd>{stats.layers}</dd></div>
+            </dl>
           </div>
 
-          <div className="hero-code">
-            <CodeWindow file="how-i-work.ts" code={HOW_I_WORK} animate label="how-i-work.ts — code sample" />
-            <p className="code-caption" aria-hidden="true">
-              <T th="พิมพ์ครั้งเดียว ไม่วนซ้ำ — เหมือน build ที่ดี" en="typed once. never loops. like a good build." />
-            </p>
-          </div>
+          <StackExplorer layers={explorer} initial={busiest} />
         </div>
       </section>
 
       {/* ───────────── WORK ───────────── */}
       <section className="section" id="work" aria-labelledby="work-title">
         <div className="wrap">
-          <p className="eyebrow"><T th="คลังผลงาน" en="Case library" /></p>
-          <h2 className="h2" id="work-title">
-            <T th={`ผลงาน ${stats.projects} ชิ้น แยกตาม layer`} en={`${stats.projects} projects, layer by layer.`} />
-          </h2>
-          <CaseLibrary items={projects.map((p) => ({ slug: p.slug, layers: p.layers, status: p.status }))}>
-            <div className="case-grid">
-              {projects.map((p, i) => <CaseCard key={p.slug} project={p} index={i} />)}
-            </div>
-          </CaseLibrary>
+          <header className="section-head">
+            <p className="eyebrow">01 — <T th="ผลงาน" en="Work" /></p>
+            <h2 className="h2" id="work-title">
+              <T th="ผลงานที่ผมลงมือทำ และส่วนที่ผมรับผิดชอบ" en="What I built, and the part I owned." />
+            </h2>
+          </header>
+          <WorkListWrap projects={projects} scale={scale} />
         </div>
       </section>
 
-      {/* ───────────── SKILLS ───────────── */}
-      <section className="section" id="skills" aria-labelledby="skills-title">
-        <div className="wrap">
-          <p className="eyebrow"><T th="ทักษะ" en="Skills" /></p>
-          <h2 className="h2" id="skills-title">
-            <T th={`${areas.length} ส่วนของระบบที่ผมทำได้`} en={`${areas.length === 3 ? "Three" : areas.length} parts of the stack I work in.`} />
-          </h2>
-
-          <div className="area-grid">
-            {areas.map((a) => {
-              const featured = a.featured;
-              const titleId = `area-${a.layers.join("-")}`;
-              return (
-                <article key={titleId} className={`area-card${featured ? " is-featured" : ""}`} aria-labelledby={titleId}>
-                  {featured && <p className="area-badge"><T th="ถนัดที่สุด" en="Main focus" /></p>}
-                  <h3 className="area-title" id={titleId}><T text={a.title} /></h3>
-                  <p className="area-desc"><T text={a.description} /></p>
-                  <p className="area-count">
-                    <b>{a.projectCount}</b> <T th="ผลงาน" en={a.projectCount === 1 ? "project" : "projects"} />
-                  </p>
-                  <ul className="area-points">
-                    {a.points.map((pt) => <li key={pt.en}><T text={pt} /></li>)}
-                  </ul>
-                  <ul className="skill-list" aria-label="Tools">
-                    {a.skills.map((s) => <li key={s.name}>{s.name}</li>)}
-                  </ul>
-                  <Link href={`/projects/?layer=${a.layers[0]}`} className={`btn ${featured ? "btn-primary" : "btn-outline"} btn-block`}>
-                    <T th="ดูผลงานในส่วนนี้" en="See this work" />
-                    <span className="sr-only"> — {a.title.en}</span>
-                  </Link>
-                </article>
-              );
-            })}
+      {/* ───────────── LAB ───────────── */}
+      {labs.length > 0 && (
+        <section className="section section--lab" id="lab" aria-labelledby="lab-title">
+          <div className="wrap">
+            <header className="section-head">
+              <p className="eyebrow">02 — Lab</p>
+              <h2 className="h2" id="lab-title">
+                <T th="โปรเจกต์เล็กที่กดเล่นได้เลย" en="Small projects you can play with." />
+              </h2>
+              <p className="lead lead--sm">
+                <T
+                  th="แต่ละชิ้นต่อยอดจากงานที่ทำอยู่ ทำงานในเบราว์เซอร์ทั้งหมด ไม่ต้องติดตั้งอะไร"
+                  en="Each one grows out of a bigger project. Everything runs in your browser — nothing to install."
+                />
+              </p>
+            </header>
+            <div className="lab-grid">
+              {labs.map((p) => <LabCard key={p.slug} project={p} />)}
+            </div>
           </div>
+        </section>
+      )}
 
-          {languages && (
-            <p className="footnote">
-              <T th="ภาษาที่ใช้:" en="Languages:" /> {languages.items.map((s) => s.name).join(" · ")}
-            </p>
-          )}
+      {/* ───────────── TOOLBOX ───────────── */}
+      <section className="section" id="toolbox" aria-labelledby="toolbox-title">
+        <div className="wrap">
+          <header className="section-head">
+            <p className="eyebrow">03 — <T th="เครื่องมือ" en="Toolbox" /></p>
+            <h2 className="h2" id="toolbox-title"><T th="สิ่งที่ผมใช้ทำงานจริง" en="What I actually work with." /></h2>
+          </header>
+          <dl className="toolbox reveal">
+            {groups.map((g) => (
+              <div key={g.group} className="tool-group">
+                <dt>{g.group}</dt>
+                <dd>
+                  <ul>{g.items.map((s) => <li key={s.name}>{s.name}</li>)}</ul>
+                </dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </section>
 
       {/* ───────────── CONTACT ───────────── */}
-      <section className="section" id="contact" aria-labelledby="contact-title">
-        <div className="wrap contact-grid">
-          <div className="contact-copy">
-            <p className="eyebrow"><T th="ติดต่อ" en="Contact" /></p>
-            <h2 className="h2" id="contact-title">
-              <T th="อยากสร้างอะไร บอกผมได้เลย" en="Tell me what you want to build." />
-            </h2>
-            <p className="lead lead--sm">
-              <T
-                th="ฝึกงาน งานพาร์ทไทม์ ชวนทำโปรเจกต์ หรือแค่อยากถามเรื่องผลงาน — ทักมาได้ทุกเรื่อง"
-                en="Internships, part-time roles, a project idea, or a question about my work — all good starting points."
-              />
-            </p>
-            <p><a className="email-link" href={`mailto:${profile.email}`}>{profile.email}</a></p>
-            <ul className="social-list">
-              {profile.links.map((l) => (
-                <li key={l.url}>
-                  <a href={l.url} target="_blank" rel="noopener noreferrer">
-                    {l.label} <span aria-hidden="true">↗</span>
-                    <span className="sr-only"> (เปิดแท็บใหม่ / opens in new tab)</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
+      <section className="contact-band" id="contact" aria-labelledby="contact-title">
+        <div className="wrap contact-inner">
+          <p className="eyebrow eyebrow--light">04 — <T th="ติดต่อ" en="Contact" /></p>
+          <h2 className="contact-title" id="contact-title">
+            <T th="มีงาน ฝึกงาน หรือไอเดีย? คุยกันได้เลย" en="Got a role, an internship or an idea? Let's talk." />
+          </h2>
+          <a className="contact-email" href={`mailto:${profile.email}`}>{profile.email}</a>
+          <div className="contact-actions">
+            <a className="btn btn-light" href={`mailto:${profile.email}`}><T th="ส่งอีเมล" en="Send an email" /></a>
+            <CopyEmail email={profile.email} />
+            {profile.links.map((l) => (
+              <a key={l.url} className="btn btn-ghost-light" href={l.url} target="_blank" rel="noopener noreferrer">
+                {l.label} <span aria-hidden="true">↗</span>
+                <span className="sr-only"> (opens in new tab)</span>
+              </a>
+            ))}
           </div>
-          <ContactForm email={profile.email} />
         </div>
       </section>
     </>
+  );
+}
+
+function WorkListWrap({ projects, scale }: { projects: Project[]; scale: LayerId[] }) {
+  return (
+    <WorkList items={projects.map((p) => ({ slug: p.slug, layers: p.layers, status: p.status }))}>
+      <div className="work-rows">
+        {projects.map((p, i) => <ProjectRow key={p.slug} project={p} index={i} scale={scale} />)}
+      </div>
+      <p className="more-link">
+        <Link href="/projects/" className="text-link"><T th="ดูหน้ารวมผลงาน →" en="Open the full project index →" /></Link>
+      </p>
+    </WorkList>
   );
 }

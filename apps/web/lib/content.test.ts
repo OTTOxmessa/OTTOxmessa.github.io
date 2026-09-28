@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CONTENT_DIR, getAreas, getProfile, getSkillGroups, getStats, loadProjects } from "./content";
+import { CONTENT_DIR, getProfile, getSkillGroups, getStats, loadProjects } from "./content";
 
 describe("real content in /content", () => {
   it("every project file passes the schema", () => {
@@ -14,10 +14,6 @@ describe("real content in /content", () => {
   it("profile and skills are valid", () => {
     expect(getProfile().email).toContain("@");
     expect(getSkillGroups().length).toBeGreaterThan(0);
-  });
-
-  it("areas reference existing skill groups", () => {
-    for (const a of getAreas()) expect(a.skills.length).toBeGreaterThan(0);
   });
 
   it("stats are derived from published projects", () => {

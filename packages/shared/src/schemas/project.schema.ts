@@ -22,6 +22,8 @@ export const projectMetaSchema = z.object({
     .object({ github: z.url().optional(), demo: z.url().optional() })
     .default({}),
   cover: z.string().optional(),
+  /** path ของเดโมที่อยู่ในเว็บนี้เอง เช่น "/lab/rebalancer/" → แสดงในส่วน Lab */
+  lab: z.string().regex(/^\/lab\/[a-z0-9-]+\/$/, "lab ต้องเป็น path แบบ /lab/<ชื่อ>/").optional(),
   /** โค้ดตัวอย่างที่แสดงในหน้าต่างโค้ดบนการ์ดผลงาน */
   snippet: z
     .object({ file: z.string().min(1), code: z.string().min(1).max(600) })

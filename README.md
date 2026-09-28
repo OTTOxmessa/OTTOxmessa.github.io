@@ -12,18 +12,23 @@
 portfolio/
 ├── apps/web/                    # Next.js (output: "export")
 │   ├── app/
-│   │   ├── page.tsx             # หน้าแรก: hero, แผนภาพ layer, selected work, skills, contact
+│   │   ├── page.tsx             # หน้าแรก: hero + Stack Explorer, ผลงาน, Lab, เครื่องมือ, ติดต่อ
+│   │   ├── lab/<ชื่อ>/page.tsx   # หน้า Lab ที่กดเล่นได้ (3 ชิ้น)
 │   │   ├── projects/page.tsx    # รายการผลงาน + ตัวกรองตาม layer (?layer=backend)
 │   │   ├── projects/[slug]/     # หน้า case study
 │   │   ├── sitemap.ts, robots.ts
 │   │   └── globals.css          # design tokens + สีของแต่ละ layer
-│   ├── components/public/       # Header, LayerStrip, ProjectRow, ProjectFilter, T (สองภาษา)
+│   ├── components/public/       # Header, StackExplorer, ProjectRow, WorkList, LabCard, T (สองภาษา)
+│   ├── components/lab/          # UI ของแต่ละ Lab (SandboxApp, RebalancerApp, AggregationApp)
 │   └── lib/content.ts           # ★ จุดเดียวที่อ่านข้อมูล (ตอนนี้อ่านไฟล์, อนาคตเปลี่ยนเป็น API)
 ├── packages/shared/             # Zod schemas + LAYERS ใช้ร่วมกันทุก app
+├── packages/labs/               # logic ของ Lab เป็น TypeScript ล้วน + unit test (ไม่ผูกกับ React)
+│   ├── src/sandbox/             # จำลองลำดับ system call ของ online judge
+│   ├── src/rebalance/           # คำนวณการปรับสมดุลพอร์ต
+│   └── src/aggregate/           # MongoDB aggregation engine ขนาดเล็ก + ข้อมูลตัวอย่าง
 ├── content/                     # ★ ข้อมูลทั้งหมดของเว็บ — แก้ตรงนี้
 │   ├── profile.json            # ชื่อ, kicker, headline (*คำ* = เน้นสี), intro, อีเมล, ลิงก์
-│   ├── skills.json             # รายการทักษะ แบ่งตาม group
-│   ├── areas.json              # การ์ด "ทักษะ" 3 ใบในหน้าแรก (อ้างถึง group ใน skills.json)
+│   ├── skills.json             # ทักษะ แบ่งตาม group (ใส่ layer เพื่อให้ขึ้นใน Stack Explorer)
 │   └── projects/<slug>/
 │       ├── index.md             # frontmatter + เนื้อหาภาษาไทย
 │       └── en.md                # เนื้อหาภาษาอังกฤษ (ไม่ใส่ก็ได้ จะใช้ภาษาไทยแทน)
@@ -60,12 +65,12 @@ stack: [React, Express, MongoDB]
 links:
   github: https://github.com/...
   demo: https://...
-featured: true        # (สำรองไว้ใช้ต่อ) ตอนนี้หน้าแรกแสดงทุกผลงาน
-snippet:              # หน้าต่างโค้ดบนการ์ด (ไม่บังคับ, ไม่เกิน 600 ตัวอักษร)
+lab: /lab/my-demo/     # ถ้าเป็นเดโมที่อยู่ในเว็บนี้ → ขึ้นในส่วน Lab (ไม่บังคับ)
+snippet:              # หน้าต่างโค้ดในหน้า case study (ไม่บังคับ, ไม่เกิน 600 ตัวอักษร)
   file: server/app.js
   code: |
     app.use('/api/auth', authRoutes);
-metric: { label: "TEAM", value: "6" }   # ป้ายตัวเลขบนการ์ด (ไม่บังคับ)
+metric: { label: "TEAM", value: "6" }   # ป้ายตัวเลขใต้หน้าต่างโค้ด (ไม่บังคับ)
 order: 1              # เลขน้อยแสดงก่อน
 published: true       # false = draft ไม่แสดงบนเว็บ
 ---
@@ -86,6 +91,18 @@ published: true       # false = draft ไม่แสดงบนเว็บ
 **เพิ่ม layer ใหม่** (เช่น mobile): เพิ่มใน `packages/shared/src/constants/layers.ts` แล้วเพิ่มสี `--layer-mobile` และ `[data-layer="mobile"]` ใน `apps/web/app/globals.css`
 
 ---
+
+## Lab — โปรเจกต์เล็กที่กดเล่นได้
+
+| Lab | ต่อยอดจาก | สิ่งที่โชว์ |
+|---|---|---|
+| [Syscall Sandbox Visualizer](https://ottoxmessa.github.io/lab/syscall-sandbox/) | Secure Code Judge (วิชา OS) | fork / setrlimit / seccomp / execve / wait4 ทีละขั้น |
+| [Portfolio Rebalancer](https://ottoxmessa.github.io/lab/portfolio-rebalancer/) | ระบบจัดการพอร์ต (CP353002) | algorithm ซื้อ/ขาย และแบบซื้ออย่างเดียว |
+| [Aggregation Playground](https://ottoxmessa.github.io/lab/aggregation-playground/) | Boardgame Everyday | query engine ที่เขียนเอง ดูผลทุก stage |
+
+logic ทั้งหมดอยู่ใน `packages/labs` แยกจาก UI จึงทดสอบได้ด้วย `pnpm test` โดยไม่ต้องเปิดเบราว์เซอร์
+
+**เพิ่ม Lab ใหม่:** เขียน logic ใน `packages/labs/src/<ชื่อ>/` + test → สร้าง UI ใน `apps/web/components/lab/` → หน้า `apps/web/app/lab/<ชื่อ>/page.tsx` (ก๊อปจาก lab อื่น) → สร้างไฟล์ผลงานใน `content/projects/<ชื่อ>/` พร้อม `lab: /lab/<ชื่อ>/`
 
 ## การเข้าถึง (Accessibility)
 

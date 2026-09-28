@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   basePath,
   trailingSlash: true,
   images: { unoptimized: true },
-  transpilePackages: ["@portfolio/shared"],
+  transpilePackages: ["@portfolio/shared", "@portfolio/labs"],
 };
 
 export default nextConfig;
