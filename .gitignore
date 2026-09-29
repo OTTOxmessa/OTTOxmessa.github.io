@@ -10,3 +10,8 @@ next-env.d.ts
 !.env.example
 .DS_Store
 Thumbs.db
+
+# token / secrets — never commit
+github-token*
+*.token
+*.pem
