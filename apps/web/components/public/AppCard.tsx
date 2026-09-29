@@ -3,6 +3,22 @@ import type { Project } from "@portfolio/shared";
 import { T } from "./T";
 
 function Preview({ path }: { path: string }) {
+  if (path.includes("/billing/"))
+    return (
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        <rect x="30" y="8" width="96" height="108" rx="4" className="p-card" transform="rotate(-4 78 62)" />
+        <rect x="88" y="6" width="104" height="110" rx="4" className="p-card" />
+        <rect x="98" y="16" width="40" height="7" rx="3" className="p-line p-line--strong" />
+        <rect x="150" y="16" width="32" height="7" rx="3" className="p-accent" />
+        {[0, 1, 2, 3].map((i) => (
+          <g key={i} transform={`translate(98 ${38 + i * 12})`}>
+            <rect width="50" height="5" rx="2" className="p-line" />
+            <rect x="62" width="22" height="5" rx="2" className="p-line p-line--strong" />
+          </g>
+        ))}
+        <rect x="140" y="90" width="44" height="12" rx="3" className="p-accent" />
+      </svg>
+    );
   if (path.includes("/pos/"))
     return (
       <svg viewBox="0 0 220 120" aria-hidden="true">
