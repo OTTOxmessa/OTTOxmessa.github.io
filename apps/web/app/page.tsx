@@ -148,10 +148,10 @@ export default function HomePage() {
           </h2>
           <a className="contact-email" href={`mailto:${profile.email}`}>{profile.email}</a>
           <div className="contact-actions">
-            <a className="btn btn-light" href={`mailto:${profile.email}`}><T th="ส่งอีเมล" en="Send an email" /></a>
+            <a className="btn btn-primary" href={`mailto:${profile.email}`}><T th="ส่งอีเมล" en="Send an email" /></a>
             <CopyEmail email={profile.email} />
             {profile.links.map((l) => (
-              <a key={l.url} className="btn btn-ghost-light" href={l.url} target="_blank" rel="noopener noreferrer">
+              <a key={l.url} className="btn btn-outline" href={l.url} target="_blank" rel="noopener noreferrer">
                 {l.label} <span aria-hidden="true">↗</span>
                 <span className="sr-only"> (opens in new tab)</span>
               </a>

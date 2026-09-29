@@ -18,14 +18,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#121412" },
-    { media: "(prefers-color-scheme: light)", color: "#FAFAF8" },
-  ],
+  themeColor: "#f6f5f1",
 };
 
-/** ตั้งภาษา/ธีมก่อนหน้าเว็บวาด เพื่อไม่ให้กะพริบ */
-const bootScript = `(function(){var d=document.documentElement;d.classList.add("js");try{var l=localStorage.getItem("lang");if(l==="en"||l==="th"){d.dataset.lang=l;d.lang=l}var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"}d.dataset.theme=t}catch(e){}})();`;
+/** ตั้งภาษา/ธีมก่อนหน้าเว็บวาด เพื่อไม่ให้กะพริบ — ธีมสว่างเป็นค่าเริ่มต้นเสมอ โหมดมืดเปิดจากปุ่มเท่านั้น (จำค่าไว้) */
+const bootScript = `(function(){var d=document.documentElement;d.classList.add("js");try{var l=localStorage.getItem("lang");if(l==="en"||l==="th"){d.dataset.lang=l;d.lang=l}var t=localStorage.getItem("theme");d.dataset.theme=t==="dark"?"dark":"light"}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

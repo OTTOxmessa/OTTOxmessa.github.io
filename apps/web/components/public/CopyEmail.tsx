@@ -14,7 +14,7 @@ export function CopyEmail({ email }: { email: string }) {
     }
   }
   return (
-    <button type="button" className="btn btn-ghost-light" onClick={copy}>
+    <button type="button" className="btn btn-outline" onClick={copy}>
       {done ? (
         <><span className="i18n-th">คัดลอกแล้ว ✓</span><span className="i18n-en">Copied ✓</span></>
       ) : (
