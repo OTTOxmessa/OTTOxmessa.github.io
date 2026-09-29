@@ -19,6 +19,55 @@ function Preview({ path }: { path: string }) {
         </g>
       </svg>
     );
+  if (path.includes("timetable"))
+    return (
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        {[0, 1, 2, 3, 4].map((d) => <rect key={d} x={14 + d * 40} y="12" width="34" height="8" rx="3" className="p-line" />)}
+        {([[0, 30, 40], [1, 60, 30], [2, 28, 24], [3, 52, 36], [4, 70, 26], [0, 80, 20]] as [number, number, number][]).map(([d, y, h], i) => (
+          <rect key={i} x={14 + d * 40} y={y} width="34" height={h} rx="4" className={i === 1 ? "p-accent" : "p-bar"} />
+        ))}
+      </svg>
+    );
+  if (path.includes("loan"))
+    return (
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <g key={i} transform={`translate(${16 + i * 25} 0)`}>
+            <rect y={104 - (30 + i * 6)} width="16" height={30 + i * 6} rx="3" className="p-bar" />
+            <rect y={104 - (30 + i * 6) - (40 - i * 5)} width="16" height={40 - i * 5} rx="3" className="p-accent" />
+          </g>
+        ))}
+      </svg>
+    );
+  if (path.includes("focus"))
+    return (
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        <circle cx="110" cy="60" r="44" className="p-ring" />
+        <circle cx="110" cy="60" r="44" className="p-ring-fg" strokeDasharray="276" strokeDashoffset="90" transform="rotate(-90 110 60)" />
+        <text x="110" y="68" textAnchor="middle" className="p-mid">18:24</text>
+      </svg>
+    );
+  if (path.includes("groups"))
+    return (
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        {[0, 1, 2].map((g) => (
+          <g key={g} transform={`translate(${14 + g * 68} 14)`}>
+            <rect width="58" height="92" rx="8" className="p-card" />
+            {[0, 1, 2, 3].map((i) => <circle key={i} cx="16" cy={18 + i * 20} r="6" className={g === 1 && i === 0 ? "p-accent" : "p-bar"} />)}
+            {[0, 1, 2, 3].map((i) => <rect key={i} x="28" y={15 + i * 20} width="20" height="6" rx="3" className="p-line" />)}
+          </g>
+        ))}
+      </svg>
+    );
+  if (path.includes("thai-text"))
+    return (
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        <text x="16" y="44" className="p-mid p-left">฿1,250.50</text>
+        <rect x="16" y="60" width="188" height="8" rx="4" className="p-accent" />
+        <rect x="16" y="76" width="150" height="8" rx="4" className="p-line p-line--strong" />
+        <rect x="16" y="92" width="110" height="8" rx="4" className="p-line" />
+      </svg>
+    );
   if (path.includes("gpa"))
     return (
       <svg viewBox="0 0 220 120" aria-hidden="true">

@@ -22,7 +22,7 @@ portfolio/
 │   ├── components/lab/          # UI ของแต่ละ Lab (SandboxApp, RebalancerApp, AggregationApp)
 │   └── lib/content.ts           # ★ จุดเดียวที่อ่านข้อมูล (ตอนนี้อ่านไฟล์, อนาคตเปลี่ยนเป็น API)
 ├── packages/shared/             # Zod schemas + LAYERS ใช้ร่วมกันทุก app
-├── packages/tools/              # logic ของแอปใช้งานจริง (พร้อมเพย์, หารบิล, เกรด, รายรับรายจ่าย) + test
+├── packages/tools/              # logic ของแอปใช้งานจริงทั้ง 8 ตัว + test
 ├── packages/labs/               # logic ของ Lab เป็น TypeScript ล้วน + unit test (ไม่ผูกกับ React)
 │   ├── src/sandbox/             # จำลองลำดับ system call ของ online judge
 │   ├── src/rebalance/           # คำนวณการปรับสมดุลพอร์ต
@@ -100,6 +100,11 @@ published: true       # false = draft ไม่แสดงบนเว็บ
 | [หารบิล + QR พร้อมเพย์](https://ottoxmessa.github.io/tools/bill-split/) | หารตามที่แต่ละคนกิน คิดค่าบริการ/VAT แล้วสร้าง QR พร้อมเพย์ยอดของแต่ละคน, แชร์บิลเป็นลิงก์ |
 | [คำนวณเกรด GPA / GPAX](https://ottoxmessa.github.io/tools/gpa/) | GPA รายเทอม, GPAX, วางแผนว่าต้องได้เกรดเท่าไหร่, เกณฑ์เกียรตินิยม |
 | [จดรายรับรายจ่าย](https://ottoxmessa.github.io/tools/money/) | จดเร็ว สรุปรายเดือน งบรายหมวด ส่งออก/นำเข้า CSV |
+| [ตารางเรียน + ส่งเข้าปฏิทิน](https://ottoxmessa.github.io/tools/timetable/) | ตารางรายสัปดาห์ เตือนเวลาชน คาบถัดไป ส่งออก .ics |
+| [คำนวณผ่อน](https://ottoxmessa.github.io/tools/loan/) | flat rate vs ลดต้นลดดอก, ดอกเบี้ยจริงต่อปี, ตารางผ่อน |
+| [จับเวลาโฟกัส](https://ottoxmessa.github.io/tools/focus/) | Pomodoro + รายการงาน + สถิติ 7 วัน |
+| [สุ่มแบ่งกลุ่ม](https://ottoxmessa.github.io/tools/groups/) | แบ่งกลุ่มเท่ากัน ห้ามคู่อยู่ด้วยกัน รหัสสุ่มตรวจสอบได้ สุ่มชื่อ |
+| [อ่านจำนวนเงิน & วันที่ไทย](https://ottoxmessa.github.io/tools/thai-text/) | BAHTTEXT, จำนวนเงินภาษาอังกฤษ, วันที่ไทย, พ.ศ.↔ค.ศ., นับวัน |
 
 ทั้งหมดทำงานในเบราว์เซอร์ ข้อมูลเก็บใน localStorage ของผู้ใช้ ไม่มี server — logic อยู่ใน `packages/tools` พร้อม test (QR พร้อมเพย์ทดสอบเทียบกับไลบรารี `promptpay-qr`)
 

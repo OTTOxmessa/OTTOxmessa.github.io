@@ -10,7 +10,12 @@
     "./bill": "./src/bill.ts",
     "./gpa": "./src/gpa.ts",
     "./money": "./src/money.ts",
-    "./share": "./src/share.ts"
+    "./share": "./src/share.ts",
+    "./timetable": "./src/timetable.ts",
+    "./loan": "./src/loan.ts",
+    "./focus": "./src/focus.ts",
+    "./groups": "./src/groups.ts",
+    "./thai-text": "./src/thai-text.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

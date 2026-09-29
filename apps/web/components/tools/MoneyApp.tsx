@@ -39,18 +39,24 @@ export function MoneyApp() {
   const cat = (c: string) => (lang === "th" ? c : (EN[c] ?? c));
   const fid = useId();
   const [store, setStore] = useStoredState<Store>("tool-money-v1", () => ({ entries: [], budgets: {} }));
-  const [month, setMonth] = useState(() => todayStr().slice(0, 7));
+  const [month, setMonth] = useState("2026-01");
   const [kind, setKind] = useState<Kind>("expense");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]!);
   const [note, setNote] = useState("");
-  const [date, setDate] = useState(todayStr);
+  const [date, setDate] = useState("");
   const [err, setErr] = useState("");
   const [lastDeleted, setLastDeleted] = useState<Entry | null>(null);
   const [showBudget, setShowBudget] = useState(false);
   const [toast, show] = useToast();
   const amountRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // ใช้วันที่ของเครื่องผู้ใช้หลังโหลด (HTML ถูก build ไว้ล่วงหน้า)
+  useEffect(() => {
+    setMonth(todayStr().slice(0, 7));
+    setDate(todayStr());
+  }, []);
 
   useEffect(() => setCategory(kind === "expense" ? EXPENSE_CATEGORIES[0]! : INCOME_CATEGORIES[0]!), [kind]);
 
@@ -69,9 +75,9 @@ export function MoneyApp() {
       return;
     }
     setErr("");
-    const entry: Entry = { id: uid(), date, kind, amount: Math.round(n * 100) / 100, category, note: note.trim() };
+    const entry: Entry = { id: uid(), date: date || todayStr(), kind, amount: Math.round(n * 100) / 100, category, note: note.trim() };
     setStore((s) => ({ ...s, entries: [...s.entries, entry] }));
-    setMonth(date.slice(0, 7));
+    setMonth((date || todayStr()).slice(0, 7));
     setAmount("");
     setNote("");
     show(T(`บันทึก${kind === "expense" ? "รายจ่าย" : "รายรับ"} ${baht(entry.amount, lang)} บาทแล้ว`, `Saved ${kind} of ${baht(entry.amount, lang)} baht`));

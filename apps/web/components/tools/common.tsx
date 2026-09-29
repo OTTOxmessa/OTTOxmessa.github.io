@@ -93,3 +93,30 @@ export function readFile(file: File): Promise<string> {
     r.readAsText(file, "utf-8");
   });
 }
+
+/** ปุ่มคัดลอกที่บอกผลผ่าน toast */
+export function CopyButton({ text, label, done, notify, className }: { text: string; label: string; done: string; notify: (m: string) => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      className={className ?? "btn btn-outline btn-sm"}
+      disabled={!text}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          notify(done);
+        } catch {
+          notify("Copy failed");
+        }
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+/** วันนี้แบบ YYYY-MM-DD ตามเวลาเครื่อง */
+export function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
