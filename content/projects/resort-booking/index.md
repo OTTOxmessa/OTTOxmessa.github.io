@@ -11,6 +11,9 @@ stack: [Node.js, Express, PostgreSQL, JWT, Google Cloud Storage, Nodemailer, nod
 links:
   github: https://github.com/OTTOxmessa/Resort_System
   demo: https://resort-system-jo00.onrender.com/home.html
+demoNote:
+  th: "เซิร์ฟเวอร์ฟรีจะหลับเมื่อไม่มีคนใช้ — เปิดครั้งแรกอาจรอ 30–60 วินาที"
+  en: "Free hosting sleeps when idle — the first load can take 30–60 seconds"
 featured: true
 order: 1
 snippet:

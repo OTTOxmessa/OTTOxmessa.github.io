@@ -51,13 +51,18 @@ export default async function ProjectPage({ params }: { params: Promise<Params> 
             </p>
             <h1 className="display display--md" id="case-title"><T text={project.title} /></h1>
             <p className="lead"><T text={project.summary} /></p>
-            {(project.links.github || project.links.demo) && (
+            {(project.links.github || project.links.demo || project.lab) && (
               <div className="hero-actions">
                 {project.links.demo && (
                   <a className="btn btn-primary" href={project.links.demo} target="_blank" rel="noopener noreferrer">
                     <T th="ดูเดโม" en="Live demo" /> <span aria-hidden="true">↗</span>
                     <span className="sr-only"> (opens in new tab)</span>
                   </a>
+                )}
+                {project.lab && (
+                  <Link className="btn btn-primary" href={project.lab}>
+                    <T th="ลองใช้งาน" en="Try it" /> <span aria-hidden="true">→</span>
+                  </Link>
                 )}
                 {project.links.github && (
                   <a className="btn btn-outline" href={project.links.github} target="_blank" rel="noopener noreferrer">
@@ -67,6 +72,7 @@ export default async function ProjectPage({ params }: { params: Promise<Params> 
                 )}
               </div>
             )}
+            {project.demoNote && <p className="demo-note"><T text={project.demoNote} /></p>}
           </div>
           {project.snippet && (
             <CodeWindow file={project.snippet.file} code={project.snippet.code} label={`${project.snippet.file} — code sample`}>

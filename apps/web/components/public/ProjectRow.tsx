@@ -33,6 +33,17 @@ export function ProjectRow({ project, index, scale }: { project: Project; index:
           <span className="row-year">{project.year}</span>
         </div>
         <p className="row-stack">{project.stack.slice(0, 4).join(" · ")}</p>
+        {project.lab ? (
+          <Link href={project.lab} className="try-btn">
+            <T th="ลองใช้งาน" en="Try it" /> <span aria-hidden="true">→</span>
+            <span className="sr-only"> — {project.title.en}</span>
+          </Link>
+        ) : project.links.demo ? (
+          <a href={project.links.demo} className="try-btn" target="_blank" rel="noopener noreferrer">
+            <T th="ลองใช้งานจริง" en="Try the live app" /> <span aria-hidden="true">↗</span>
+            <span className="sr-only"> — {project.title.en} (opens in new tab)</span>
+          </a>
+        ) : null}
       </div>
       <span className="row-arrow" aria-hidden="true">→</span>
     </article>
