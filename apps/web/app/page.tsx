@@ -15,6 +15,8 @@ export default function HomePage() {
   const projects = getProjects();
   const labs = projects.filter((p) => p.lab);
   const apps = projects.filter((p) => p.app);
+  const systems = apps.filter((p) => p.featured);
+  const tools = apps.filter((p) => !p.featured);
   const stats = getStats();
   const skills = getSkills();
   const groups = getSkillGroups();
@@ -76,8 +78,17 @@ export default function HomePage() {
                 />
               </p>
             </header>
+            {systems.length > 0 && (
+              <>
+                <h3 className="app-group"><T th="ระบบขนาดใหญ่" en="Full systems" /> <span className="muted-count">({systems.length})</span></h3>
+                <div className="app-grid app-grid--systems">
+                  {systems.map((p) => <AppCard key={p.slug} project={p} />)}
+                </div>
+                <h3 className="app-group"><T th="เครื่องมือเล็ก" en="Small tools" /> <span className="muted-count">({tools.length})</span></h3>
+              </>
+            )}
             <div className="app-grid">
-              {apps.map((p) => <AppCard key={p.slug} project={p} />)}
+              {tools.map((p) => <AppCard key={p.slug} project={p} />)}
             </div>
           </div>
         </section>

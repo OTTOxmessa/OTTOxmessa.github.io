@@ -3,6 +3,51 @@ import type { Project } from "@portfolio/shared";
 import { T } from "./T";
 
 function Preview({ path }: { path: string }) {
+  if (path.includes("/pos/"))
+    return (
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <rect key={i} x={12 + (i % 3) * 42} y={14 + Math.floor(i / 3) * 44} width="36" height="38" rx="6" className={i === 1 ? "p-accent" : "p-card"} />
+        ))}
+        <rect x="144" y="12" width="64" height="96" rx="8" className="p-card" />
+        {[0, 1, 2].map((i) => <rect key={i} x="152" y={24 + i * 14} width={40 - i * 6} height="6" rx="3" className="p-line" />)}
+        <rect x="152" y="86" width="48" height="14" rx="4" className="p-accent" />
+      </svg>
+    );
+  if (path.includes("/dorm/"))
+    return (
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <rect key={i} x={12 + (i % 4) * 30} y={16 + Math.floor(i / 4) * 46} width="24" height="38" rx="4" className={i === 2 || i === 7 ? "p-bar" : i === 5 ? "p-accent" : "p-card"} />
+        ))}
+        <rect x="140" y="12" width="68" height="96" rx="6" className="p-card" />
+        {[0, 1, 2, 3].map((i) => <rect key={i} x="148" y={24 + i * 12} width="52" height="5" rx="2" className="p-line" />)}
+        <g transform="translate(160 76)">
+          {Array.from({ length: 16 }).map((_, i) => ((i * 5) % 3 < 2 ? <rect key={i} x={(i % 4) * 6} y={Math.floor(i / 4) * 6} width="5" height="5" className="p-qr" /> : null))}
+        </g>
+      </svg>
+    );
+  if (path.includes("/kanban/"))
+    return (
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        {[3, 2, 2].map((n, c) => (
+          <g key={c} transform={`translate(${12 + c * 68} 10)`}>
+            <rect width="60" height="100" rx="8" className="p-card" />
+            <rect x="8" y="8" width="28" height="6" rx="3" className="p-line p-line--strong" />
+            {Array.from({ length: n }).map((_, i) => <rect key={i} x="6" y={22 + i * 26} width="48" height="20" rx="4" className={c === 1 && i === 0 ? "p-accent" : "p-bar"} />)}
+          </g>
+        ))}
+      </svg>
+    );
+  if (path.includes("/flashcards/"))
+    return (
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        <rect x="58" y="16" width="116" height="70" rx="10" className="p-bar" transform="rotate(-6 116 51)" />
+        <rect x="52" y="20" width="116" height="70" rx="10" className="p-card" />
+        <text x="110" y="62" textAnchor="middle" className="p-mid">deadline</text>
+        {[0, 1, 2, 3].map((i) => <rect key={i} x={40 + i * 36} y="100" width="30" height="12" rx="4" className={i === 2 ? "p-accent" : "p-line"} />)}
+      </svg>
+    );
   if (path.includes("bill"))
     return (
       <svg viewBox="0 0 220 120" aria-hidden="true">
@@ -98,7 +143,7 @@ function Preview({ path }: { path: string }) {
 export function AppCard({ project }: { project: Project }) {
   const id = `app-${project.slug}`;
   return (
-    <article className="app-card reveal" aria-labelledby={id}>
+    <article className={`app-card reveal${project.featured ? " app-card--system" : ""}`} aria-labelledby={id}>
       <div className="app-preview"><Preview path={project.app!} /></div>
       <div className="app-body">
         <h3 className="app-title" id={id}>
