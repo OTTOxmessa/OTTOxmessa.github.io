@@ -15,7 +15,7 @@ demoNote:
   th: "เซิร์ฟเวอร์ฟรีจะหลับเมื่อไม่มีคนใช้ — เปิดครั้งแรกอาจรอ 30–60 วินาที"
   en: "Free hosting sleeps when idle — the first load can take 30–60 seconds"
 featured: true
-order: 1
+order: 11
 snippet:
   file: server/app.js
   code: |

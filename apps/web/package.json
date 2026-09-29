@@ -18,12 +18,15 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.6.5",
-    "@portfolio/labs": "workspace:*"
+    "@portfolio/labs": "workspace:*",
+    "@portfolio/tools": "workspace:*",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "vitest": "^4.0.3"
+    "vitest": "^4.0.3",
+    "@types/qrcode": "^1.5.6"
   }
 }

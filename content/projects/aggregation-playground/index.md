@@ -11,7 +11,7 @@ stack: [TypeScript, React, MongoDB, Vitest]
 lab: /lab/aggregation-playground/
 links:
   github: https://github.com/OTTOxmessa/OTTOxmessa.github.io/tree/main/packages/labs/src/aggregate
-order: 8
+order: 18
 snippet:
   file: aggregate/engine.ts
   code: |

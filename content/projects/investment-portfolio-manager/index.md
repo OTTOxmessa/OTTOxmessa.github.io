@@ -9,7 +9,7 @@ status: in-progress
 layers: [frontend, backend, database]
 stack: [Java, Spring Boot, React, Yahoo Finance API]
 featured: true
-order: 3
+order: 13
 snippet:
   file: RebalanceController.java
   code: |

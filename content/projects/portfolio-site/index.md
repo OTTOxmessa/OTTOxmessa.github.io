@@ -10,7 +10,7 @@ layers: [frontend, infra]
 stack: [Next.js, TypeScript, Zod, pnpm workspaces, Vitest, GitHub Actions, GitHub Pages]
 links:
   github: https://github.com/OTTOxmessa/OTTOxmessa.github.io
-order: 5
+order: 15
 snippet:
   file: .github/workflows/ci.yml
   code: |

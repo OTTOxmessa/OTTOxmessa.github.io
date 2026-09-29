@@ -20,6 +20,7 @@ export function ProjectRow({ project, index, scale }: { project: Project; index:
             <T text={project.title} />
           </Link>
           {project.lab && <span className="row-flag">Lab</span>}
+          {project.app && <span className="row-flag row-flag--app">App</span>}
         </h3>
         <p className="row-summary"><T text={project.summary} /></p>
         <p className="row-role">
@@ -33,7 +34,12 @@ export function ProjectRow({ project, index, scale }: { project: Project; index:
           <span className="row-year">{project.year}</span>
         </div>
         <p className="row-stack">{project.stack.slice(0, 4).join(" · ")}</p>
-        {project.lab ? (
+        {project.app ? (
+          <Link href={project.app} className="try-btn">
+            <T th="เปิดใช้งาน" en="Open app" /> <span aria-hidden="true">→</span>
+            <span className="sr-only"> — {project.title.en}</span>
+          </Link>
+        ) : project.lab ? (
           <Link href={project.lab} className="try-btn">
             <T th="ลองใช้งาน" en="Try it" /> <span aria-hidden="true">→</span>
             <span className="sr-only"> — {project.title.en}</span>

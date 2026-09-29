@@ -51,13 +51,18 @@ export default async function ProjectPage({ params }: { params: Promise<Params> 
             </p>
             <h1 className="display display--md" id="case-title"><T text={project.title} /></h1>
             <p className="lead"><T text={project.summary} /></p>
-            {(project.links.github || project.links.demo || project.lab) && (
+            {(project.links.github || project.links.demo || project.lab || project.app) && (
               <div className="hero-actions">
                 {project.links.demo && (
                   <a className="btn btn-primary" href={project.links.demo} target="_blank" rel="noopener noreferrer">
                     <T th="ดูเดโม" en="Live demo" /> <span aria-hidden="true">↗</span>
                     <span className="sr-only"> (opens in new tab)</span>
                   </a>
+                )}
+                {project.app && (
+                  <Link className="btn btn-primary" href={project.app}>
+                    <T th="เปิดใช้งาน" en="Open the app" /> <span aria-hidden="true">→</span>
+                  </Link>
                 )}
                 {project.lab && (
                   <Link className="btn btn-primary" href={project.lab}>

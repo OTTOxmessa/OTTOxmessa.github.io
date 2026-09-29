@@ -11,7 +11,7 @@ stack: [TypeScript, React, Linux syscalls, Vitest]
 lab: /lab/syscall-sandbox/
 links:
   github: https://github.com/OTTOxmessa/OTTOxmessa.github.io/tree/main/packages/labs/src/sandbox
-order: 6
+order: 16
 snippet:
   file: sandbox/index.ts
   code: |

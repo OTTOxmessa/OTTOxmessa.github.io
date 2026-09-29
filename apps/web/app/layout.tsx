@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   description: profile.intro.en,
   openGraph: { type: "website", title: `${profile.name.en} — Portfolio`, description: profile.intro.en },
   twitter: { card: "summary" },
+  icons: { icon: `${BASE_PATH}/icon.svg` },
 };
 
 export const viewport: Viewport = {

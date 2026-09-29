@@ -22,6 +22,7 @@ portfolio/
 │   ├── components/lab/          # UI ของแต่ละ Lab (SandboxApp, RebalancerApp, AggregationApp)
 │   └── lib/content.ts           # ★ จุดเดียวที่อ่านข้อมูล (ตอนนี้อ่านไฟล์, อนาคตเปลี่ยนเป็น API)
 ├── packages/shared/             # Zod schemas + LAYERS ใช้ร่วมกันทุก app
+├── packages/tools/              # logic ของแอปใช้งานจริง (พร้อมเพย์, หารบิล, เกรด, รายรับรายจ่าย) + test
 ├── packages/labs/               # logic ของ Lab เป็น TypeScript ล้วน + unit test (ไม่ผูกกับ React)
 │   ├── src/sandbox/             # จำลองลำดับ system call ของ online judge
 │   ├── src/rebalance/           # คำนวณการปรับสมดุลพอร์ต
@@ -91,6 +92,16 @@ published: true       # false = draft ไม่แสดงบนเว็บ
 **เพิ่ม layer ใหม่** (เช่น mobile): เพิ่มใน `packages/shared/src/constants/layers.ts` แล้วเพิ่มสี `--layer-mobile` และ `[data-layer="mobile"]` ใน `apps/web/app/globals.css`
 
 ---
+
+## แอปใช้งานจริง
+
+| แอป | ทำอะไรได้ |
+|---|---|
+| [หารบิล + QR พร้อมเพย์](https://ottoxmessa.github.io/tools/bill-split/) | หารตามที่แต่ละคนกิน คิดค่าบริการ/VAT แล้วสร้าง QR พร้อมเพย์ยอดของแต่ละคน, แชร์บิลเป็นลิงก์ |
+| [คำนวณเกรด GPA / GPAX](https://ottoxmessa.github.io/tools/gpa/) | GPA รายเทอม, GPAX, วางแผนว่าต้องได้เกรดเท่าไหร่, เกณฑ์เกียรตินิยม |
+| [จดรายรับรายจ่าย](https://ottoxmessa.github.io/tools/money/) | จดเร็ว สรุปรายเดือน งบรายหมวด ส่งออก/นำเข้า CSV |
+
+ทั้งหมดทำงานในเบราว์เซอร์ ข้อมูลเก็บใน localStorage ของผู้ใช้ ไม่มี server — logic อยู่ใน `packages/tools` พร้อม test (QR พร้อมเพย์ทดสอบเทียบกับไลบรารี `promptpay-qr`)
 
 ## Lab — โปรเจกต์เล็กที่กดเล่นได้
 

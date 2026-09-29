@@ -15,9 +15,10 @@ function store(key: string, value: string) {
 }
 
 const NAV = [
+  { href: "/#apps", th: "แอป", en: "Apps" },
   { href: "/#work", th: "ผลงาน", en: "Work" },
   { href: "/#lab", th: "Lab", en: "Lab" },
-  { href: "/#toolbox", th: "เครื่องมือ", en: "Toolbox" },
+  { href: "/#toolbox", th: "ทักษะ", en: "Skills" },
   { href: "/#contact", th: "ติดต่อ", en: "Contact" },
 ];
 

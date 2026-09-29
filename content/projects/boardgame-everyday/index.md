@@ -12,7 +12,7 @@ status: in-progress
 layers: [backend, database]
 stack: [Node.js, Express, MongoDB, Mongoose]
 featured: true
-order: 2
+order: 12
 snippet:
   file: stats.service.js
   code: |

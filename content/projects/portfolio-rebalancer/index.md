@@ -11,7 +11,7 @@ stack: [TypeScript, React, Vitest]
 lab: /lab/portfolio-rebalancer/
 links:
   github: https://github.com/OTTOxmessa/OTTOxmessa.github.io/tree/main/packages/labs/src/rebalance
-order: 7
+order: 17
 snippet:
   file: rebalance/index.ts
   code: |

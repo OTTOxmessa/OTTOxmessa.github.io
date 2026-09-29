@@ -24,6 +24,8 @@ export const projectMetaSchema = z.object({
   cover: z.string().optional(),
   /** ข้อความสั้นใต้ปุ่มเดโม เช่น บัญชีทดลอง หรือ "เปิดครั้งแรกรอ ~1 นาที" */
   demoNote: localizedSchema.optional(),
+  /** path ของแอปใช้งานจริงในเว็บนี้ เช่น "/tools/bill-split/" → แสดงในส่วน "แอปใช้งานจริง" */
+  app: z.string().regex(/^\/tools\/[a-z0-9-]+\/$/, "app ต้องเป็น path แบบ /tools/<ชื่อ>/").optional(),
   /** path ของเดโมที่อยู่ในเว็บนี้เอง เช่น "/lab/rebalancer/" → แสดงในส่วน Lab */
   lab: z.string().regex(/^\/lab\/[a-z0-9-]+\/$/, "lab ต้องเป็น path แบบ /lab/<ชื่อ>/").optional(),
   /** โค้ดตัวอย่างที่แสดงในหน้าต่างโค้ดบนการ์ดผลงาน */
