@@ -20,7 +20,8 @@
     "./dorm": "./src/dorm.ts",
     "./kanban": "./src/kanban.ts",
     "./srs": "./src/srs.ts",
-    "./billing": "./src/billing.ts"
+    "./billing": "./src/billing.ts",
+    "./inventory": "./src/inventory.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

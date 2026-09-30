@@ -3,6 +3,22 @@ import type { Project } from "@portfolio/shared";
 import { T } from "./T";
 
 function Preview({ path }: { path: string }) {
+  if (path.includes("/inventory/"))
+    return (
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        {[0, 1, 2].map((row) => (
+          <g key={row}>
+            <rect x="14" y={102 - row * 34} width="118" height="4" rx="2" className="p-line p-line--strong" />
+            {[0, 1, 2, 3].map((i) => (
+              <rect key={i} x={18 + i * 28} y={102 - row * 34 - (row === 1 && i === 2 ? 10 : 26)} width="24" height={row === 1 && i === 2 ? 10 : 26} rx="3" className={row === 1 && i === 2 ? "p-accent" : "p-bar"} />
+            ))}
+          </g>
+        ))}
+        <rect x="146" y="14" width="62" height="92" rx="6" className="p-card" />
+        {[0, 1, 2, 3].map((i) => <rect key={i} x="154" y={26 + i * 14} width={i === 1 ? 30 : 44} height="6" rx="3" className={i === 1 ? "p-accent" : "p-line"} />)}
+        <rect x="154" y="86" width="46" height="12" rx="4" className="p-accent" />
+      </svg>
+    );
   if (path.includes("/billing/"))
     return (
       <svg viewBox="0 0 220 120" aria-hidden="true">

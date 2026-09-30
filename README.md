@@ -22,7 +22,7 @@ portfolio/
 │   ├── components/lab/          # UI ของแต่ละ Lab (SandboxApp, RebalancerApp, AggregationApp)
 │   └── lib/content.ts           # ★ จุดเดียวที่อ่านข้อมูล (ตอนนี้อ่านไฟล์, อนาคตเปลี่ยนเป็น API)
 ├── packages/shared/             # Zod schemas + LAYERS ใช้ร่วมกันทุก app
-├── packages/tools/              # logic ของแอปใช้งานจริงทั้ง 13 ตัว + test
+├── packages/tools/              # logic ของแอปใช้งานจริงทั้ง 14 ตัว + test
 ├── packages/labs/               # logic ของ Lab เป็น TypeScript ล้วน + unit test (ไม่ผูกกับ React)
 │   ├── src/sandbox/             # จำลองลำดับ system call ของ online judge
 │   ├── src/rebalance/           # คำนวณการปรับสมดุลพอร์ต
@@ -99,6 +99,7 @@ published: true       # false = draft ไม่แสดงบนเว็บ
 
 | ระบบ | ทำอะไรได้ |
 |---|---|
+| [สต็อกสินค้า + สั่งซื้อ](https://ottoxmessa.github.io/tools/inventory/) | รับเข้า/เบิกออก ต้นทุนถัวเฉลี่ย แนะนำสั่งซื้อ (นับของที่รอรับ) → ใบสั่งซื้อแยกผู้ขาย รับบางส่วน ตรวจนับ บัตรสต็อก |
 | [ใบเสนอราคา / ใบแจ้งหนี้ / ใบเสร็จ](https://ottoxmessa.github.io/tools/billing/) | เสนอราคา → ใบแจ้งหนี้ → รับชำระ → ใบเสร็จอัตโนมัติ, VAT 7% + หัก ณ ที่จ่าย, อายุลูกหนี้, พิมพ์ PDF + QR, CSV ให้นักบัญชี |
 | [ระบบขายหน้าร้าน (POS)](https://ottoxmessa.github.io/tools/pos/) | ขาย ตัดสต็อก รับเงินสด/QR พร้อมเพย์ ใบเสร็จ ยกเลิกบิล รายงานรายชั่วโมง/7 วัน สินค้าขายดี CSV |
 | [ระบบจัดการหอพัก](https://ottoxmessa.github.io/tools/dorm/) | ห้อง/ผู้เช่า จดมิเตอร์ ออกบิลทุกห้องคลิกเดียว พิมพ์ใบแจ้งหนี้ + QR ค้างชำระ สรุป 6 เดือน |
