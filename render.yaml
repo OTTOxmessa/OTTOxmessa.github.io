@@ -1,0 +1,27 @@
+# Render Blueprint — สร้างบริการ API จาก repo นี้ (Dashboard → New → Blueprint)
+# ฐานข้อมูลใช้ Neon (แผนฟรีไม่หมดอายุ) แล้วใส่ DATABASE_URL เองใน Dashboard — ไม่เก็บ secret ใน repo
+services:
+  - type: web
+    name: otto-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --filter @portfolio/api... && pnpm --filter @portfolio/api build
+    startCommand: pnpm --filter @portfolio/api start
+    healthCheckPath: /health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - apps/api/**
+        - packages/**
+        - pnpm-lock.yaml
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGINS
+        value: https://ottoxmessa.github.io
+      - key: DATABASE_URL
+        sync: false

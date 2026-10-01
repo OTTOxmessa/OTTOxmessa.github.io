@@ -21,6 +21,7 @@ portfolio/
 │   ├── components/public/       # Header, StackExplorer, ProjectRow, WorkList, LabCard, T (สองภาษา)
 │   ├── components/lab/          # UI ของแต่ละ Lab (SandboxApp, RebalancerApp, AggregationApp)
 │   └── lib/content.ts           # ★ จุดเดียวที่อ่านข้อมูล (ตอนนี้อ่านไฟล์, อนาคตเปลี่ยนเป็น API)
+├── apps/api/                    # Fastify + PostgreSQL — backend ของระบบเอกสารขาย (ดู apps/api/README.md)
 ├── packages/shared/             # Zod schemas + LAYERS ใช้ร่วมกันทุก app
 ├── packages/tools/              # logic ของแอปใช้งานจริงทั้ง 14 ตัว + test
 ├── packages/labs/               # logic ของ Lab เป็น TypeScript ล้วน + unit test (ไม่ผูกกับ React)

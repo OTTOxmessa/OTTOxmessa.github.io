@@ -1,0 +1,33 @@
+{
+  "name": "@portfolio/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
+    "build": "tsup",
+    "start": "node dist/server.js",
+    "migrate": "tsx --env-file-if-exists=.env src/db/migrate-cli.ts",
+    "db:generate": "drizzle-kit generate",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.1",
+    "@portfolio/shared": "workspace:*",
+    "@portfolio/tools": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "fastify": "^5.12.5",
+    "postgres": "^3.4.9",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "drizzle-kit": "^0.31.11",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

@@ -18,6 +18,19 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Postgres จริงสำหรับ integration test ของ apps/api
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: otto
+          POSTGRES_PASSWORD: otto
+          POSTGRES_DB: otto_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U otto" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://otto:otto@localhost:5432/otto_test
     steps:
       - uses: actions/checkout@v7
 
@@ -32,6 +45,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Build API bundle
+        run: pnpm --filter @portfolio/api build
 
       # หา base path อัตโนมัติ: repo ชื่อ <user>.github.io → "" / repo อื่น → "/<repo>"
       - id: pages
