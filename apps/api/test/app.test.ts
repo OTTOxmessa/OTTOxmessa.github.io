@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app";
 import { loadConfig } from "../src/config";
-import { createDb } from "../src/db/client";
+import { createDb, normalizeDatabaseUrl } from "../src/db/client";
 import { makeApp, resetDatabase } from "./helpers";
 
 let ctx: Awaited<ReturnType<typeof makeApp>>;
@@ -56,5 +56,24 @@ describe("config", () => {
   it("fails fast with a readable message", () => {
     expect(() => loadConfig({ DATABASE_URL: "mysql://x" })).toThrow(/DATABASE_URL/);
     expect(loadConfig({ DATABASE_URL: "postgres://a@b/c", CORS_ORIGINS: "https://a.com, https://b.com" }).CORS_ORIGINS).toEqual(["https://a.com", "https://b.com"]);
+  });
+});
+
+describe("database url", () => {
+  it("drops provider-only parameters the driver would forward to the server", () => {
+    const neon = "postgresql://u:p@ep-x.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+    const out = new URL(normalizeDatabaseUrl(neon));
+    expect(out.searchParams.get("sslmode")).toBe("require");
+    expect(out.searchParams.has("channel_binding")).toBe(false);
+    expect(out.hostname).toBe("ep-x.ap-southeast-1.aws.neon.tech");
+  });
+
+  it("connects even when the url carries channel_binding", async () => {
+    const { db, client } = createDb("postgres://otto:otto@localhost:5432/otto_test?channel_binding=require", { max: 1 });
+    const app = await buildApp({ config: loadConfig({ NODE_ENV: "test", DATABASE_URL: "postgres://otto:otto@localhost:5432/otto_test" }), db });
+    const res = await app.inject({ method: "GET", url: "/health" });
+    expect(res.json().db).toBe("ok");
+    await app.close();
+    await client.end();
   });
 });

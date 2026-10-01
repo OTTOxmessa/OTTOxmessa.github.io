@@ -6,7 +6,7 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: corepack enable && pnpm install --frozen-lockfile --filter @portfolio/api... && pnpm --filter @portfolio/api build
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false --filter @portfolio/api... && pnpm --filter @portfolio/api build
     startCommand: pnpm --filter @portfolio/api start
     healthCheckPath: /health
     autoDeploy: true
