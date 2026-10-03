@@ -20,7 +20,10 @@ describe("GET /health", () => {
   });
 
   it("returns 503 when the database is unreachable", async () => {
-    const config = loadConfig({ NODE_ENV: "test", DATABASE_URL: "postgres://otto:otto@127.0.0.1:1/none" });
+    const config = loadConfig({
+      NODE_ENV: "test",
+      DATABASE_URL: "postgres://otto:otto@127.0.0.1:1/none",
+    });
     const { db, client } = createDb(config.DATABASE_URL, { max: 1 });
     const app = await buildApp({ config, db });
     const res = await app.inject({ method: "GET", url: "/health" });
@@ -39,9 +42,17 @@ describe("errors and CORS", () => {
   });
 
   it("allows the portfolio origin and rejects others", async () => {
-    const ok = await ctx.app.inject({ method: "OPTIONS", url: "/health", headers: { origin: "https://ottoxmessa.github.io", "access-control-request-method": "GET" } });
+    const ok = await ctx.app.inject({
+      method: "OPTIONS",
+      url: "/health",
+      headers: { origin: "https://ottoxmessa.github.io", "access-control-request-method": "GET" },
+    });
     expect(ok.headers["access-control-allow-origin"]).toBe("https://ottoxmessa.github.io");
-    const bad = await ctx.app.inject({ method: "OPTIONS", url: "/health", headers: { origin: "https://evil.example", "access-control-request-method": "GET" } });
+    const bad = await ctx.app.inject({
+      method: "OPTIONS",
+      url: "/health",
+      headers: { origin: "https://evil.example", "access-control-request-method": "GET" },
+    });
     expect(bad.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
@@ -55,13 +66,17 @@ describe("errors and CORS", () => {
 describe("config", () => {
   it("fails fast with a readable message", () => {
     expect(() => loadConfig({ DATABASE_URL: "mysql://x" })).toThrow(/DATABASE_URL/);
-    expect(loadConfig({ DATABASE_URL: "postgres://a@b/c", CORS_ORIGINS: "https://a.com, https://b.com" }).CORS_ORIGINS).toEqual(["https://a.com", "https://b.com"]);
+    expect(
+      loadConfig({ DATABASE_URL: "postgres://a@b/c", CORS_ORIGINS: "https://a.com, https://b.com" })
+        .CORS_ORIGINS,
+    ).toEqual(["https://a.com", "https://b.com"]);
   });
 });
 
 describe("database url", () => {
   it("drops provider-only parameters the driver would forward to the server", () => {
-    const neon = "postgresql://u:p@ep-x.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+    const neon =
+      "postgresql://u:p@ep-x.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
     const out = new URL(normalizeDatabaseUrl(neon));
     expect(out.searchParams.get("sslmode")).toBe("require");
     expect(out.searchParams.has("channel_binding")).toBe(false);
@@ -69,11 +84,38 @@ describe("database url", () => {
   });
 
   it("connects even when the url carries channel_binding", async () => {
-    const { db, client } = createDb("postgres://otto:otto@localhost:5432/otto_test?channel_binding=require", { max: 1 });
-    const app = await buildApp({ config: loadConfig({ NODE_ENV: "test", DATABASE_URL: "postgres://otto:otto@localhost:5432/otto_test" }), db });
+    const { db, client } = createDb(
+      "postgres://otto:otto@localhost:5432/otto_test?channel_binding=require",
+      { max: 1 },
+    );
+    const app = await buildApp({
+      config: loadConfig({
+        NODE_ENV: "test",
+        DATABASE_URL: "postgres://otto:otto@localhost:5432/otto_test",
+      }),
+      db,
+    });
     const res = await app.inject({ method: "GET", url: "/health" });
     expect(res.json().db).toBe("ok");
     await app.close();
     await client.end();
+  });
+});
+
+describe("OpenAPI docs", () => {
+  it("publishes a spec that lists the main endpoints with bearer auth", async () => {
+    const res = await ctx.app.inject({ method: "GET", url: "/docs/json" });
+    expect(res.statusCode).toBe(200);
+    const spec = res.json();
+    expect(spec.openapi).toMatch(/^3\./);
+    expect(Object.keys(spec.paths)).toEqual(
+      expect.arrayContaining([
+        "/auth/login",
+        "/orgs/{orgId}/documents",
+        "/orgs/{orgId}/documents/{id}/payments",
+      ]),
+    );
+    expect(spec.components.securitySchemes.bearer.scheme).toBe("bearer");
+    expect((await ctx.app.inject({ method: "GET", url: "/docs" })).statusCode).toBeLessThan(400);
   });
 });

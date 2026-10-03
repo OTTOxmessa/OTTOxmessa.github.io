@@ -21,6 +21,7 @@
     "./kanban": "./src/kanban.ts",
     "./srs": "./src/srs.ts",
     "./billing": "./src/billing.ts",
+    "./billing-sample": "./src/billing-sample.ts",
     "./inventory": "./src/inventory.ts"
   },
   "scripts": {

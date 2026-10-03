@@ -39,7 +39,12 @@ export const roleEnum = pgEnum("member_role", ["owner", "staff", "viewer"]);
 export const docTypeEnum = pgEnum("doc_type", ["QT", "INV", "RC"]);
 export const quoteStatusEnum = pgEnum("quote_status", ["draft", "sent", "accepted", "rejected"]);
 export const vatModeEnum = pgEnum("vat_mode", ["none", "exclusive", "inclusive"]);
-export const paymentMethodEnum = pgEnum("payment_method", ["transfer", "promptpay", "cash", "cheque"]);
+export const paymentMethodEnum = pgEnum("payment_method", [
+  "transfer",
+  "promptpay",
+  "cash",
+  "cheque",
+]);
 
 /* ------------------------------------------------------------------ ผู้ใช้และร้าน */
 
@@ -53,6 +58,32 @@ export const users = pgTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("users_email_lower_idx").on(sql`lower(${t.email})`)],
+);
+
+/**
+ * refresh token แบบหมุนเวียน (rotation): ใช้ได้ครั้งเดียว แล้วได้ตัวใหม่แทน
+ * ถ้ามีคนเอาตัวที่ใช้ไปแล้วมาใช้ซ้ำ = token อาจถูกขโมย → ยกเลิกทั้ง "ตระกูล" (family) ทันที
+ * เก็บเฉพาะ SHA-256 ของ token — ฐานข้อมูลหลุดก็เอาไปใช้ไม่ได้
+ */
+export const refreshTokens = pgTable(
+  "refresh_tokens",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    familyId: uuid("family_id").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    replacedBy: uuid("replaced_by"),
+    userAgent: text("user_agent").notNull().default(""),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("refresh_tokens_hash_idx").on(t.tokenHash),
+    index("refresh_tokens_family_idx").on(t.familyId),
+  ],
 );
 
 export type Prefixes = { QT: string; INV: string; RC: string };
@@ -70,15 +101,22 @@ export const organizations = pgTable("organizations", {
   signer: text("signer").notNull().default(""),
   dueDays: smallint("due_days").notNull().default(30),
   validDays: smallint("valid_days").notNull().default(15),
-  prefixes: jsonb("prefixes").$type<Prefixes>().notNull().default({ QT: "QT", INV: "INV", RC: "RC" }),
+  prefixes: jsonb("prefixes")
+    .$type<Prefixes>()
+    .notNull()
+    .default({ QT: "QT", INV: "INV", RC: "RC" }),
   createdAt: createdAt(),
 });
 
 export const memberships = pgTable(
   "memberships",
   {
-    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     role: roleEnum("role").notNull().default("staff"),
     createdAt: createdAt(),
   },
@@ -91,7 +129,9 @@ export const customers = pgTable(
   "customers",
   {
     id: id(),
-    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     taxId: text("tax_id").notNull().default(""),
     branch: text("branch").notNull().default(""),
@@ -109,7 +149,9 @@ export const items = pgTable(
   "items",
   {
     id: id(),
-    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     unit: text("unit").notNull().default(""),
     priceSatang: satang("price_satang").notNull().default(0),
@@ -117,18 +159,30 @@ export const items = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("items_org_idx").on(t.orgId, t.name), check("items_price_nonneg", sql`${t.priceSatang} >= 0`)],
+  (t) => [
+    index("items_org_idx").on(t.orgId, t.name),
+    check("items_price_nonneg", sql`${t.priceSatang} >= 0`),
+  ],
 );
 
 /* ------------------------------------------------------------------ เอกสาร */
 
-export type CustomerSnapshot = { name: string; taxId: string; branch: string; address: string; phone: string; email: string };
+export type CustomerSnapshot = {
+  name: string;
+  taxId: string;
+  branch: string;
+  address: string;
+  phone: string;
+  email: string;
+};
 
 export const documents = pgTable(
   "documents",
   {
     id: id(),
-    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     type: docTypeEnum("type").notNull(),
     no: text("no").notNull(),
     date: date("date", { mode: "string" }).notNull(),
@@ -165,7 +219,9 @@ export const documentLines = pgTable(
   "document_lines",
   {
     id: id(),
-    documentId: uuid("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
     position: smallint("position").notNull(),
     description: text("description").notNull(),
     qty: numeric("qty", { precision: 12, scale: 3, mode: "number" }).notNull(),
@@ -183,8 +239,12 @@ export const payments = pgTable(
   "payments",
   {
     id: id(),
-    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
-    documentId: uuid("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
     date: date("date", { mode: "string" }).notNull(),
     amountSatang: satang("amount_satang").notNull(),
     method: paymentMethodEnum("method").notNull(),
@@ -193,7 +253,11 @@ export const payments = pgTable(
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
-  (t) => [index("payments_doc_idx").on(t.documentId), index("payments_org_date_idx").on(t.orgId, t.date), check("payments_amount_pos", sql`${t.amountSatang} > 0`)],
+  (t) => [
+    index("payments_doc_idx").on(t.documentId),
+    index("payments_org_date_idx").on(t.orgId, t.date),
+    check("payments_amount_pos", sql`${t.amountSatang} > 0`),
+  ],
 );
 
 /* ------------------------------------------------------------------ กลไกเบื้องหลัง */
@@ -202,7 +266,9 @@ export const payments = pgTable(
 export const numberSequences = pgTable(
   "number_sequences",
   {
-    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     type: docTypeEnum("type").notNull(),
     period: char("period", { length: 6 }).notNull(), // YYYYMM
     last: integer("last").notNull().default(0),
@@ -214,7 +280,9 @@ export const numberSequences = pgTable(
 export const idempotencyKeys = pgTable(
   "idempotency_keys",
   {
-    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     key: text("key").notNull(),
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     requestHash: text("request_hash").notNull(),
@@ -229,7 +297,9 @@ export const auditLog = pgTable(
   "audit_log",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     action: text("action").notNull(), // เช่น document.create, payment.create, document.void
     entity: text("entity").notNull(),

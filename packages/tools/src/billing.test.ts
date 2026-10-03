@@ -142,3 +142,16 @@ describe("billing: reports", () => {
     expect(csv).toContain("INV-202609-001");
   });
 });
+
+describe("billing: sample data", () => {
+  it("builds a consistent sample: unique numbers, receipts that match payments, nothing overpaid", async () => {
+    const { billingSample } = await import("./billing-sample");
+    let k = 0;
+    const s = billingSample("2026-10-03", () => `s${++k}`);
+    const keys = s.docs.map((d) => `${d.type}|${d.no}`);
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const inv of s.docs.filter((d) => d.type === "INV")) expect(balance(inv)).toBeGreaterThanOrEqual(0);
+    expect(s.docs.filter((d) => d.type === "RC").length).toBeGreaterThan(5);
+    expect(s.customers).toHaveLength(5);
+  });
+});

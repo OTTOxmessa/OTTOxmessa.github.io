@@ -1231,6 +1231,26 @@ html[data-theme="dark"] .lbl-3 { --lc: #f5a524; } html[data-theme="dark"] .lbl-4
 .paper-wrap { overflow-x: auto; border-radius: 6px; }
 
 .bl-span { grid-column: 1 / -1; }
+/* โหมดออนไลน์ของระบบเอกสาร */
+.cloud-chip {
+  display: inline-flex; align-items: center; gap: 0.45rem; min-height: 44px; padding: 0 0.9rem; border-radius: 999px;
+  border: 1px solid var(--hairline); background: var(--sunken); color: var(--ink); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+}
+.cloud-chip:hover { border-color: var(--control); }
+.cloud-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--control); flex-shrink: 0; }
+.cloud-chip.is-online .cloud-dot { background: var(--layer-database); box-shadow: 0 0 0 3px color-mix(in srgb, var(--layer-database) 25%, transparent); }
+.cloud-chip-act { color: var(--accent-strong); font-weight: 700; }
+.cloud-note { margin: 0; padding: 0.6rem 1rem; border-radius: var(--radius); background: var(--accent-soft); font-size: 0.88rem; }
+.cloud-wait { display: grid; justify-items: center; text-align: center; gap: 0.75rem; padding-block: 3rem; }
+.cloud-wait p { margin: 0; max-width: 34rem; }
+.cloud-spinner { width: 2rem; height: 2rem; border-radius: 50%; border: 3px solid var(--hairline); border-top-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .cloud-spinner { animation: cloud-spin 0.9s linear infinite; } }
+@keyframes cloud-spin { to { transform: rotate(360deg); } }
+.plain-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.plain-fieldset:disabled { opacity: 0.75; }
+.account-panel { display: grid; gap: 0.75rem; }
+.account-panel .hint, .account-panel p { margin: 0; }
+.account-seg { justify-self: start; margin-top: 0.5rem; }
 .bl-filter input, .bl-search input { max-width: 16rem !important; }
 .bl-search { max-width: 24rem; margin-bottom: 1rem; }
 .docs td.wrap { white-space: normal; min-width: 10rem; }

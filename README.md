@@ -173,7 +173,7 @@ Settings → Pages → Custom domain แล้วตั้ง DNS ตามท�
 
 | ข้อจำกัด | ผลกระทบ | ทางออก |
 |---|---|---|
-| รันได้แค่ไฟล์ static ไม่มี server | ไม่มี Express API, MongoDB, หน้า Admin, login | ตอนนี้แก้ผลงานผ่านไฟล์ใน `content/` (แก้บนเว็บ GitHub ได้) |
+| รันได้แค่ไฟล์ static ไม่มี server | API ต้องอยู่ที่อื่น | `apps/api` (Fastify + PostgreSQL) อยู่บน Render + Neon หน้าเว็บเรียกข้ามโดเมนด้วย Bearer token (ไม่ใช้ cookie) · ผลงานยังแก้ผ่านไฟล์ใน `content/` |
 | ไม่มี ISR / server actions / route handlers แบบ dynamic | ข้อมูลเปลี่ยน = ต้อง build ใหม่ | Actions build ให้อัตโนมัติทุก push (~1–2 นาที) |
 | ฟอร์มติดต่อส่งข้อมูลไม่ได้ | ใช้ `mailto:` แทน | ถ้าต้องการฟอร์มจริง ใช้ Formspree / Web3Forms (ฟรี) หรือรอทำ API |
 | แผนฟรีต้องเป็น **public repo** | ทุกคนเห็นโค้ดและไฟล์ใน repo | ห้าม commit `.env` / secret ใดๆ (มีใน `.gitignore` แล้ว) |
@@ -198,7 +198,12 @@ Settings → Pages → Custom domain แล้วตั้ง DNS ตามท�
 - [x] Vitest + GitHub Actions CI + deploy GitHub Pages
 - [ ] OG image รายผลงาน
 
-### Phase 3: Admin + API (ต้องย้ายออกจาก GitHub Pages บางส่วน)
+### ✅ Phase 3 (บางส่วน): API
+- [x] `apps/api` — Fastify + PostgreSQL บน Render + Neon สำหรับระบบเอกสารขาย (บัญชีผู้ใช้, สิทธิ์ในร้าน, เลขที่ไม่ซ้ำ, รับชำระแบบ idempotent) — ดู [apps/api/README.md](apps/api/README.md)
+- [x] หน้าเว็บเรียก API ข้ามโดเมนด้วย access token + refresh token แบบหมุน (`apps/web/lib/api.ts`) — เลี่ยงปัญหา third-party cookie ด้านล่าง
+- [ ] Admin แก้ผลงานผ่าน API
+
+#### แนวทางเดิมสำหรับ Admin (ยังไม่ได้ทำ)
 เมื่อต้องการ Admin/API จริง มี 2 ทาง:
 
 - **A — เก็บหน้าเว็บไว้บน GitHub Pages** + เพิ่ม `apps/api` (Express) บน Render/Railway + MongoDB Atlas

@@ -24,6 +24,9 @@ Freelancers, small agencies and SMEs usually build quotations one by one in Word
 
 Monthly invoiced / collected / output VAT, a 6-month chart, **receivables aging** (current, 1–30, 31–60, 61–90, 90+ days), a follow-up list, quotes awaiting reply, win rate, top customers, per-customer statements and a CSV export for your accountant.
 
-## Data
+## Data: on this device or online
 
-Stored in this browser, no server — back up and restore as a file. This tool prepares documents; it isn't tax advice.
+- **This device** (default) — stored in the browser, no sign-up, works offline, back up and restore as a file
+- **Online** — "Go online" keeps the data on the [OTTO API](/projects/otto-api/) (PostgreSQL): use it from any device and with your staff, document numbers are issued by the server and never collide, and local data moves up in one click — there's a "Try instantly" demo, no sign-up needed
+
+Both modes share the same screens and the same calculation logic. This tool prepares documents; it isn't tax advice.

@@ -25,3 +25,5 @@ services:
         value: https://ottoxmessa.github.io
       - key: DATABASE_URL
         sync: false
+      - key: JWT_SECRET
+        generateValue: true

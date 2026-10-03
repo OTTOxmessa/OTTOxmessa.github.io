@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  addDays,
   aging,
   balance,
   blankDoc,
@@ -27,42 +26,31 @@ import {
   type Line,
   type Payment,
   type QuoteStatus,
-  type VatMode,
 } from "@portfolio/tools/billing";
+import { billingSample, defaultBusiness } from "@portfolio/tools/billing-sample";
 import { detectKind, sanitizeId } from "@portfolio/tools/promptpay";
 import { bahtText } from "@portfolio/tools/thai-text";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { errorText } from "@/lib/api";
 import { useLang } from "@/lib/useLang";
+import { useBillingCloud, type Actions, type BillingCloud, type PayInput, type Store } from "./billing-cloud";
 import { baht, ConfirmButton, download, num, readFile, todayIso, uid, useStoredState, useToast } from "./common";
 import { PromptPayQr } from "./PromptPayQr";
 import { Modal, PrintSheet, printNow, Tabs, useHashView } from "./ui";
 
-type Store = { docs: Doc[]; customers: Customer[]; items: CatalogItem[]; biz: Business };
 type View = "dashboard" | "docs" | "customers" | "items" | "settings";
 const VIEWS = ["dashboard", "docs", "customers", "items", "settings"] as const;
 type TFn = (th: string, en: string) => string;
 type SetStore = (f: (s: Store) => Store) => void;
 
-const defaultBiz: Business = {
-  name: "ธุรกิจของฉัน",
-  taxId: "",
-  branch: "สำนักงานใหญ่",
-  address: "",
-  phone: "",
-  email: "",
-  promptpay: "",
-  vatRegistered: false,
-  signer: "",
-  dueDays: 30,
-  validDays: 15,
-  prefixes: { QT: "QT", INV: "INV", RC: "RC" },
-};
+const defaultBiz: Business = defaultBusiness;
 const empty = (): Store => ({ docs: [], customers: [], items: [], biz: defaultBiz });
 
 const TYPE_LABEL: Record<DocType, [string, string]> = { QT: ["ใบเสนอราคา", "Quotation"], INV: ["ใบแจ้งหนี้", "Invoice"], RC: ["ใบเสร็จ", "Receipt"] };
 const INV_STATUS: Record<InvoiceStatus, [string, string]> = { unpaid: ["รอชำระ", "Unpaid"], partial: ["ชำระบางส่วน", "Partly paid"], paid: ["ชำระแล้ว", "Paid"], overdue: ["เลยกำหนด", "Overdue"], void: ["ยกเลิก", "Void"] };
 const QT_STATUS: Record<QuoteStatus, [string, string]> = { draft: ["ร่าง", "Draft"], sent: ["ส่งแล้ว", "Sent"], accepted: ["ลูกค้าตกลง", "Accepted"], rejected: ["ไม่ผ่าน", "Declined"] };
 const METHOD: Record<Payment["method"], [string, string]> = { transfer: ["โอนเงิน", "Bank transfer"], promptpay: ["พร้อมเพย์", "PromptPay"], cash: ["เงินสด", "Cash"], cheque: ["เช็ค", "Cheque"] };
+const ROLE: Record<string, [string, string]> = { owner: ["เจ้าของร้าน", "Owner"], staff: ["พนักงาน", "Staff"], viewer: ["ดูอย่างเดียว", "Viewer"] };
 
 function statusOf(d: Doc, today: string): { key: string; label: [string, string] } {
   if (d.voided) return { key: "void", label: INV_STATUS.void };
@@ -80,89 +68,48 @@ function statusOf(d: Doc, today: string): { key: string; label: [string, string]
 const fmtDate = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "—");
 const fmtLong = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : "—");
 
-/* ------------------------------------------------------------------ SAMPLE */
-function sample(today: string): Store {
-  const biz: Business = {
-    ...defaultBiz,
-    name: "OTTO Studio",
-    taxId: "0105566012344",
-    address: "99/9 ถ.มิตรภาพ ต.ในเมือง อ.เมือง จ.ขอนแก่น 40000",
-    phone: "043-000-000",
-    email: "hello@otto.studio",
-    vatRegistered: true,
-    signer: "ออตโต้",
+/** โหมดในเครื่อง: แก้ข้อมูลใน localStorage ตรงๆ (ทำงานทันที ไม่ต้องมีเน็ต) */
+function makeLocalActions(setStore: SetStore, get: () => Store): Actions {
+  const setDoc = (id: string, p: Partial<Doc>) => setStore((s) => ({ ...s, docs: s.docs.map((d) => (d.id === id ? { ...d, ...p } : d)) }));
+  return {
+    saveDoc: async (d, newCustomer) => {
+      setStore((s) => ({
+        ...s,
+        customers: newCustomer ? [...s.customers, newCustomer] : s.customers,
+        docs: s.docs.some((x) => x.id === d.id) ? s.docs.map((x) => (x.id === d.id ? d : x)) : [...s.docs, d],
+      }));
+      return { id: d.id, no: d.no };
+    },
+    setQuoteStatus: async (d, quoteStatus) => setDoc(d.id, { quoteStatus }),
+    convert: async (d) => {
+      const s = get();
+      const inv = quoteToInvoice(d, s.docs, s.biz, todayIso(), uid(), uid);
+      setStore((x) => ({ ...x, docs: [...x.docs.map((y) => (y.id === d.id ? { ...y, quoteStatus: "accepted" as const } : y)), inv] }));
+      return { id: inv.id, no: inv.no };
+    },
+    voidDoc: async (d) => setDoc(d.id, { voided: true }),
+    pay: async (d, p: PayInput) => {
+      const s = get();
+      const r = receivePayment(s.docs, d.id, { date: p.date, amount: p.amount, method: p.method, note: p.note }, s.biz, { payment: uid(), receipt: p.receipt ? uid() : null, line: uid });
+      setStore((x) => ({ ...x, docs: r.docs }));
+      return { receiptNo: r.receipt?.no ?? null };
+    },
+    saveCustomer: async (c) => setStore((s) => ({ ...s, customers: s.customers.some((x) => x.id === c.id) ? s.customers.map((x) => (x.id === c.id ? c : x)) : [...s.customers, c] })),
+    deleteCustomer: async (id) => setStore((s) => ({ ...s, customers: s.customers.filter((c) => c.id !== id) })),
+    addItem: async (i) => setStore((s) => ({ ...s, items: [...s.items, { id: uid(), ...i }] })),
+    updateItem: async (id, p) => setStore((s) => ({ ...s, items: s.items.map((x) => (x.id === id ? { ...x, ...p } : x)) })),
+    deleteItem: async (id) => setStore((s) => ({ ...s, items: s.items.filter((x) => x.id !== id) })),
+    updateBiz: async (p) => setStore((s) => ({ ...s, biz: { ...s.biz, ...p } })),
+    replaceAll: async (next) => setStore(() => next),
   };
-  const c = (name: string, taxId: string, address: string, phone = "", branch = "สำนักงานใหญ่"): Customer => ({ id: uid(), name, taxId, branch, address, phone, email: "" });
-  const customers = [
-    c("บริษัท ขอนแก่นเบเกอรี่ จำกัด", "0405561000019", "12 ถ.ศรีจันทร์ อ.เมือง จ.ขอนแก่น", "081-111-2222"),
-    c("ร้านกาแฟบ้านสวน", "", "45 หมู่ 3 ต.ศิลา อ.เมือง จ.ขอนแก่น", "089-222-3333", ""),
-    c("ห้างหุ้นส่วนจำกัด สยามก่อสร้าง", "0403550000029", "8/1 ถ.กลางเมือง จ.ขอนแก่น", "043-222-111"),
-    c("คลินิกทันตกรรมยิ้มสวย", "", "77 ถ.หน้าเมือง จ.ขอนแก่น", "082-333-4444", ""),
-    c("บริษัท อีสานโลจิสติกส์ จำกัด", "0405563000032", "200 ถ.มิตรภาพ จ.ขอนแก่น", "043-555-666", "สาขา 00001"),
-  ];
-  const it = (name: string, unit: string, price: number): CatalogItem => ({ id: uid(), name, unit, price });
-  const items = [
-    it("ออกแบบเว็บไซต์ (5 หน้า)", "งาน", 25000),
-    it("พัฒนาเว็บไซต์ + CMS", "งาน", 45000),
-    it("ดูแลเว็บไซต์รายเดือน", "เดือน", 3500),
-    it("ออกแบบโลโก้ + CI", "งาน", 12000),
-    it("ถ่ายภาพสินค้า", "ภาพ", 350),
-    it("โดเมน + โฮสติ้ง 1 ปี", "ปี", 4200),
-    it("ยิงโฆษณาออนไลน์ (ค่าบริการ)", "เดือน", 6000),
-    it("ชั่วโมงให้คำปรึกษา", "ชั่วโมง", 1500),
-  ];
-  const L = (i: number, qty = 1): Line => ({ id: uid(), description: items[i]!.name, qty, unit: items[i]!.unit, price: items[i]!.price });
-  let docs: Doc[] = [];
-  const add = (d: Doc) => (docs = [...docs, d]);
-  const quote = (ci: number, daysAgo: number, lines: Line[], status: QuoteStatus, wht = 0) => {
-    const d = { ...blankDoc("QT", docs, biz, customers[ci]!, addDays(today, -daysAgo), uid()), lines, quoteStatus: status, whtRate: wht };
-    add(d);
-    return d;
-  };
-  const invoiceFrom = (q: Doc, daysAgo: number) => {
-    const d = quoteToInvoice(q, docs, biz, addDays(today, -daysAgo), uid(), uid);
-    add(d);
-    return d;
-  };
-  const pay = (inv: Doc, daysAgo: number, amount: number | "all", method: Payment["method"] = "transfer") => {
-    const cur = docs.find((x) => x.id === inv.id)!;
-    const amt = amount === "all" ? balance(cur) : amount;
-    docs = receivePayment(docs, inv.id, { date: addDays(today, -daysAgo), amount: amt, method, note: "" }, biz, { payment: uid(), receipt: uid(), line: uid }).docs;
-  };
-  // ย้อนหลังราว 5 เดือน
-  const q1 = quote(0, 150, [L(0), L(1), L(5)], "accepted", 3);
-  const i1 = invoiceFrom(q1, 140);
-  pay(i1, 120, "all");
-  const q2 = quote(2, 120, [L(3), L(4, 20)], "accepted", 3);
-  const i2 = invoiceFrom(q2, 110);
-  pay(i2, 100, 10000);
-  pay(i2, 70, "all");
-  quote(3, 100, [L(0), L(5)], "rejected");
-  const q4 = quote(1, 80, [L(3), L(4, 12)], "accepted");
-  const i4 = invoiceFrom(q4, 75);
-  pay(i4, 60, "all", "promptpay");
-  for (const m of [95, 65, 35, 5]) {
-    const inv = { ...blankDoc("INV", docs, biz, customers[0]!, addDays(today, -m), uid()), lines: [L(2)], whtRate: 3, note: "ค่าดูแลเว็บไซต์ประจำเดือน" };
-    add(inv);
-    if (m > 40) pay(inv, m - 12, "all");
-  }
-  const q5 = quote(4, 50, [L(1), L(6, 3)], "accepted", 3);
-  const i5 = invoiceFrom(q5, 45);
-  pay(i5, 20, 30000);
-  const q6 = quote(3, 30, [L(7, 6)], "accepted");
-  invoiceFrom(q6, 28); // ยังไม่จ่าย (ใกล้ครบกำหนด)
-  const oldInv = { ...blankDoc("INV", docs, biz, customers[1]!, addDays(today, -70), uid()), lines: [L(4, 30)], vatMode: "none" as VatMode, note: "ถ่ายภาพเมนูใหม่" };
-  add(oldInv); // ค้างนาน
-  quote(2, 6, [L(0), L(1), L(2, 12)], "sent", 3);
-  quote(4, 2, [L(6, 6), L(7, 4)], "draft", 3);
-  return { docs, customers, items, biz };
 }
 
 /* ------------------------------------------------------------------ APP */
 export function BillingApp() {
   const lang = useLang();
   const T: TFn = (th, en) => (lang === "th" ? th : en);
-  const [store, setStore, ready] = useStoredState<Store>("tool-billing-v1", empty);
+  const [local, setLocal, ready] = useStoredState<Store>("tool-billing-v1", empty);
+  const cloud = useBillingCloud();
   const [view, setViewRaw] = useState<View>("dashboard");
   const setView = useHashView(VIEWS, "dashboard", setViewRaw);
   const [toast, show] = useToast();
@@ -170,10 +117,59 @@ export function BillingApp() {
   const [editing, setEditing] = useState<Doc | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [printing, setPrinting] = useState<Doc | null>(null);
+  const [account, setAccount] = useState(false);
+  const localRef = useRef(local);
+  localRef.current = local;
+  const localActions = useMemo(() => makeLocalActions(setLocal, () => localRef.current), [setLocal]);
   useEffect(() => setToday(todayIso()), []);
   const money = (n: number) => baht(n, lang);
 
-  if (!ready || !today) return <div className="bigapp billing" aria-busy="true" />;
+  if (!ready || !today || !cloud.mounted) return <div className="bigapp billing" aria-busy="true" />;
+
+  const online = cloud.session !== null;
+  const store = online ? cloud.store : local;
+  const actions = online ? cloud.actions : localActions;
+  const role = online ? cloud.role : "owner";
+  const orgName = online ? (cloud.store?.biz.name ?? cloud.session!.orgs.find((o) => o.id === cloud.session!.orgId)?.name ?? "") : local.biz.name;
+
+  /** เรียก action แล้วแจ้งผล (สำเร็จ/ผิดพลาด) ด้วย toast — คืน true ถ้าสำเร็จ */
+  async function act(fn: () => Promise<unknown>, ok?: string) {
+    try {
+      await fn();
+      if (ok) show(ok);
+      return true;
+    } catch (e) {
+      show(errorText(e));
+      return false;
+    }
+  }
+
+  const chip = (
+    <button type="button" className={`cloud-chip${online ? " is-online" : ""}`} onClick={() => setAccount(true)} aria-haspopup="dialog">
+      <span className="cloud-dot" aria-hidden="true" />
+      {online ? T("ออนไลน์", "Online") : T("ในเครื่องนี้", "This device")}
+      <span className="cloud-chip-act">{online ? T("บัญชี", "Account") : T("ใช้ออนไลน์", "Go online")}</span>
+    </button>
+  );
+  const accountModal = (
+    <Modal open={account} onClose={() => setAccount(false)} title={online ? T("บัญชีออนไลน์", "Online account") : T("ใช้งานแบบออนไลน์", "Use online")}>
+      <AccountPanel cloud={cloud} T={T} local={local} show={show} onDone={() => setAccount(false)} />
+    </Modal>
+  );
+
+  if (!store) {
+    return (
+      <div className="bigapp billing">
+        {toast}
+        <div className="bigapp-bar">
+          <p className="bigapp-name">{orgName || T("ระบบเอกสาร", "Billing")}</p>
+          {chip}
+        </div>
+        <CloudWait cloud={cloud} T={T} />
+        {accountModal}
+      </div>
+    );
+  }
 
   const overdue = store.docs.filter((d) => d.type === "INV" && invoiceStatus(d, today) === "overdue").length;
   const tabs = [
@@ -185,6 +181,8 @@ export function BillingApp() {
   ];
 
   function newDoc(type: DocType, customer: Customer | null = null) {
+    if (!store) return;
+    if (role === "viewer") return show(T("บัญชีนี้ดูได้อย่างเดียว", "Read-only account"));
     setEditing(blankDoc(type, store.docs, store.biz, customer, today, uid()));
     setOpenId(null);
   }
@@ -193,7 +191,7 @@ export function BillingApp() {
     printNow();
   }
 
-  const ctx: Ctx = { store, setStore, T, money, show, today, open: setOpenId, newDoc, edit: (d) => { setOpenId(null); setEditing(structuredClone(d)); } };
+  const ctx: Ctx = { store, actions, act, online, role, local, cloud, T, money, show, today, open: setOpenId, newDoc, edit: (d) => { setOpenId(null); setEditing(structuredClone(d)); } };
   const current = store.docs.find((d) => d.id === openId) ?? null;
 
   return (
@@ -201,14 +199,23 @@ export function BillingApp() {
       {toast}
       <div className="bigapp-bar">
         <p className="bigapp-name">{store.biz.name}</p>
+        {chip}
         <Tabs tabs={tabs} value={view} onChange={(v) => { setEditing(null); setView(v); }} label={T("เมนูระบบเอกสาร", "Billing sections")} />
       </div>
 
+      {online && cloud.session?.demo && (
+        <p className="cloud-note">{T("บัญชีทดลอง — ข้อมูลอยู่บนเซิร์ฟเวอร์จริง ลองออกเอกสาร รับชำระ หรือเปิดอีกเครื่องดูได้ · ถูกลบอัตโนมัติใน 24 ชั่วโมง", "Demo account — real server data, try it from another device too · deleted after 24 hours")}</p>
+      )}
+
       {store.docs.length === 0 && store.customers.length === 0 && !editing && view !== "settings" && (
         <div className="panel empty-state">
-          <p>{T("เริ่มจากกรอกข้อมูลกิจการในแท็บ “ข้อมูลกิจการ” แล้วออกใบเสนอราคาใบแรกได้เลย — หรือลองข้อมูลตัวอย่างของสตูดิโอรับทำเว็บ (มีเอกสารย้อนหลัง 5 เดือน ลูกหนี้ค้างชำระ และใบเสร็จ)", "Fill in your business details, then create your first quotation — or load a sample web studio with 5 months of documents.")}</p>
+          {online ? (
+            <p>{T("ร้านนี้ยังไม่มีเอกสาร — ออกใบเสนอราคาใบแรกได้เลย หรือนำข้อมูลจากโหมดในเครื่องขึ้นมาได้ที่แท็บ “ข้อมูลกิจการ”", "No documents yet — create your first quotation, or import this device's data from the Business tab.")}</p>
+          ) : (
+            <p>{T("เริ่มจากกรอกข้อมูลกิจการในแท็บ “ข้อมูลกิจการ” แล้วออกใบเสนอราคาใบแรกได้เลย — หรือลองข้อมูลตัวอย่างของสตูดิโอรับทำเว็บ (มีเอกสารย้อนหลัง 5 เดือน ลูกหนี้ค้างชำระ และใบเสร็จ)", "Fill in your business details, then create your first quotation — or load a sample web studio with 5 months of documents.")}</p>
+          )}
           <div className="side-actions">
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => { setStore(() => sample(today)); show(T("โหลดข้อมูลตัวอย่างแล้ว", "Sample loaded")); }}>{T("ใช้ข้อมูลตัวอย่าง", "Load sample")}</button>
+            {!online && <button type="button" className="btn btn-primary btn-sm" onClick={() => { setLocal(() => billingSample(today, uid)); show(T("โหลดข้อมูลตัวอย่างแล้ว", "Sample loaded")); }}>{T("ใช้ข้อมูลตัวอย่าง", "Load sample")}</button>}
             <button type="button" className="btn btn-outline btn-sm" onClick={() => setView("settings")}>{T("กรอกข้อมูลกิจการ", "Business details")}</button>
           </div>
         </div>
@@ -221,16 +228,12 @@ export function BillingApp() {
             draft={editing}
             ctx={ctx}
             onCancel={() => setEditing(null)}
-            onSave={(d, newCustomer) => {
-              setStore((s) => ({
-                ...s,
-                customers: newCustomer ? [...s.customers, newCustomer] : s.customers,
-                docs: s.docs.some((x) => x.id === d.id) ? s.docs.map((x) => (x.id === d.id ? d : x)) : [...s.docs, d],
-              }));
+            onSave={async (d, newCustomer) => {
+              const r = await actions.saveDoc(d, newCustomer, !store.docs.some((x) => x.id === d.id));
               setEditing(null);
               setView("docs");
-              setOpenId(d.id);
-              show(T(`บันทึก ${d.no} แล้ว`, `Saved ${d.no}`));
+              setOpenId(r.id);
+              show(T(`บันทึก ${r.no} แล้ว`, `Saved ${r.no}`));
             }}
           />
         ) : (
@@ -239,14 +242,15 @@ export function BillingApp() {
             {view === "docs" && <DocsView {...ctx} />}
             {view === "customers" && <CustomersView {...ctx} />}
             {view === "items" && <ItemsView {...ctx} />}
-            {view === "settings" && <SettingsView {...ctx} />}
+            {view === "settings" && <SettingsView key={online ? `org-${cloud.session?.orgId}` : "local"} {...ctx} />}
           </>
         )}
       </div>
 
       <Modal open={current !== null} onClose={() => setOpenId(null)} title={current ? `${T(...TYPE_LABEL[current.type])} ${current.no}` : ""} wide>
-        {current && <Viewer doc={current} ctx={ctx} onPrint={print} />}
+        {current && <Viewer key={current.id} doc={current} ctx={ctx} onPrint={print} />}
       </Modal>
+      {accountModal}
 
       <PrintSheet>{printing && <DocPaper doc={printing} biz={store.biz} today={today} docs={store.docs} />}</PrintSheet>
     </div>
@@ -255,7 +259,13 @@ export function BillingApp() {
 
 type Ctx = {
   store: Store;
-  setStore: SetStore;
+  actions: Actions;
+  act: (fn: () => Promise<unknown>, ok?: string) => Promise<boolean>;
+  online: boolean;
+  role: "owner" | "staff" | "viewer";
+  /** ข้อมูลโหมดในเครื่อง (ใช้ตอนนำขึ้นออนไลน์) */
+  local: Store;
+  cloud: BillingCloud;
   T: TFn;
   money: (n: number) => string;
   show: (m: string) => void;
@@ -264,6 +274,132 @@ type Ctx = {
   newDoc: (type: DocType, customer?: Customer | null) => void;
   edit: (d: Doc) => void;
 };
+
+/* ------------------------------------------------------------------ ONLINE: waiting / account */
+function CloudWait({ cloud, T }: { cloud: BillingCloud; T: TFn }) {
+  return (
+    <section className="panel cloud-wait" aria-live="polite" aria-busy={cloud.status !== "error"}>
+      {cloud.status === "error" ? (
+        <>
+          <h2 className="panel-title">{T("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ", "Couldn't reach the server")}</h2>
+          <p className="field-error" role="alert">{cloud.error}</p>
+          <div className="side-actions">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => void cloud.reload()}>{T("ลองใหม่", "Retry")}</button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => void cloud.logout()}>{T("ออกจากระบบ (กลับไปใช้ในเครื่อง)", "Sign out (use this device)")}</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <span className="cloud-spinner" aria-hidden="true" />
+          <p>{cloud.status === "waking" ? T("กำลังปลุกเซิร์ฟเวอร์… เซิร์ฟเวอร์แผนฟรีจะหลับเมื่อไม่มีคนใช้ ครั้งแรกอาจใช้ 30–60 วินาที", "Waking the server… the free plan sleeps when idle, the first request can take 30–60 seconds") : T("กำลังโหลดข้อมูลร้าน…", "Loading…")}</p>
+        </>
+      )}
+    </section>
+  );
+}
+
+function AccountPanel({ cloud, T, local, show, onDone }: { cloud: BillingCloud; T: TFn; local: Store; show: (m: string) => void; onDone: () => void }) {
+  const fid = useId();
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [f, setF] = useState({ email: "", password: "", name: "" });
+  const [busy, setBusy] = useState("");
+  const [err, setErr] = useState("");
+  const s = cloud.session;
+
+  async function run(kind: string, fn: () => Promise<unknown>, ok: string) {
+    setBusy(kind);
+    setErr("");
+    try {
+      await fn();
+      show(ok);
+      onDone();
+    } catch (e) {
+      setErr(errorText(e));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  if (s) {
+    return (
+      <div className="stack-form account-panel">
+        <p>
+          {T("เข้าสู่ระบบเป็น", "Signed in as")} <b>{s.demo ? T("บัญชีทดลอง", "Demo account") : s.user.email}</b>
+          {" · "}{T(...(ROLE[cloud.role] ?? ROLE.viewer!))}
+        </p>
+        {s.demo && <p className="hint">{T("บัญชีทดลองไม่มีรหัสผ่าน ใช้ได้เฉพาะในเบราว์เซอร์นี้ และถูกลบอัตโนมัติภายใน 24 ชั่วโมง", "The demo account has no password, works in this browser only and is deleted after 24 hours.")}</p>}
+        {s.orgs.length > 1 && (
+          <div className="field">
+            <label htmlFor={`${fid}-org`}>{T("ร้าน", "Business")}</label>
+            <select id={`${fid}-org`} value={s.orgId ?? ""} onChange={(e) => { cloud.selectOrg(e.target.value); onDone(); }}>
+              {s.orgs.map((o) => <option key={o.id} value={o.id}>{o.name} ({T(...(ROLE[o.role] ?? ROLE.viewer!))})</option>)}
+            </select>
+          </div>
+        )}
+        <p className="hint">
+          {T("ข้อมูลอยู่บนเซิร์ฟเวอร์ (PostgreSQL) — เปิดจากเครื่องไหนก็เห็นตรงกัน ข้อมูลโหมดในเครื่องยังอยู่ครบ กลับไปใช้ได้เมื่อออกจากระบบ", "Data lives on the server — same on every device. This device's local data is untouched and comes back when you sign out.")}
+        </p>
+        <div className="side-actions">
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => { void cloud.reload(); onDone(); }}>{T("โหลดข้อมูลล่าสุด", "Refresh data")}</button>
+          <a className="btn btn-outline btn-sm" href={`${cloud.apiUrl}/docs`} target="_blank" rel="noreferrer">{T("เอกสาร API", "API docs")}<span className="sr-only"> {T("(เปิดแท็บใหม่)", "(opens in a new tab)")}</span></a>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => { void cloud.logout(); show(T("ออกจากระบบแล้ว — กลับมาใช้ข้อมูลในเครื่อง", "Signed out — back to this device's data")); onDone(); }}>{T("ออกจากระบบ", "Sign out")}</button>
+        </div>
+      </div>
+    );
+  }
+
+  const waking = Boolean(busy) && cloud.status === "waking";
+  return (
+    <div className="account-panel">
+      <p className="hint">
+        {T("ใช้ออนไลน์เพื่อเก็บข้อมูลบนเซิร์ฟเวอร์ เปิดได้หลายเครื่อง ใช้ร่วมกับพนักงานได้ — เลขที่เอกสารออกโดยเซิร์ฟเวอร์ ไม่ซ้ำแม้หลายคนออกพร้อมกัน ข้อมูลในเครื่องนี้ไม่ถูกแตะต้อง", "Go online to keep data on the server, use it from any device and with staff — document numbers are issued by the server, never duplicated. This device's data is left untouched.")}
+        {local.docs.length > 0 && T(` (ย้ายเอกสาร ${local.docs.length} ใบในเครื่องขึ้นไปได้ภายหลังที่แท็บ “ข้อมูลกิจการ”)`, ` (You can import this device's ${local.docs.length} documents later from the Business tab.)`)}
+      </p>
+      <div className="side-actions">
+        <button type="button" className="btn btn-primary" disabled={Boolean(busy)} onClick={() => void run("demo", () => cloud.demo(), T("เปิดบัญชีทดลองแล้ว", "Demo account ready"))}>
+          {busy === "demo" ? T("กำลังเตรียมบัญชีทดลอง…", "Preparing demo…") : T("ทดลองใช้ทันที (ไม่ต้องสมัคร)", "Try instantly (no sign-up)")}
+        </button>
+      </div>
+      <p className="hint">{T("บัญชีทดลองมีข้อมูลตัวอย่าง 5 เดือน และถูกลบอัตโนมัติใน 24 ชั่วโมง", "The demo comes with 5 months of sample data and is deleted after 24 hours.")}</p>
+
+      <div className="seg account-seg" role="group" aria-label={T("เข้าสู่ระบบหรือสมัคร", "Sign in or register")}>
+        <button type="button" aria-pressed={mode === "login"} onClick={() => { setMode("login"); setErr(""); }}>{T("เข้าสู่ระบบ", "Sign in")}</button>
+        <button type="button" aria-pressed={mode === "register"} onClick={() => { setMode("register"); setErr(""); }}>{T("สมัครใหม่", "Register")}</button>
+      </div>
+      <form
+        className="stack-form"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!f.email.trim() || !f.password) return setErr(T("กรอกอีเมลและรหัสผ่าน", "Enter email and password"));
+          if (mode === "register" && f.password.length < 10) return setErr(T("รหัสผ่านต้องยาวอย่างน้อย 10 ตัวอักษร", "Password must be at least 10 characters"));
+          void run(
+            mode,
+            () => (mode === "login" ? cloud.login(f.email, f.password) : cloud.register({ email: f.email, password: f.password, name: f.name.trim() || undefined })),
+            mode === "login" ? T("เข้าสู่ระบบแล้ว", "Signed in") : T("สร้างบัญชีและร้านแล้ว", "Account created"),
+          );
+        }}
+      >
+        <div className="field"><label htmlFor={`${fid}-e`}>{T("อีเมล", "Email")}</label><input id={`${fid}-e`} type="email" autoComplete="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
+        <div className="field">
+          <label htmlFor={`${fid}-p`}>{T("รหัสผ่าน", "Password")}</label>
+          <input id={`${fid}-p`} type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} aria-describedby={mode === "register" ? `${fid}-ph` : undefined} />
+          {mode === "register" && <p className="field-hint-muted" id={`${fid}-ph`}>{T("อย่างน้อย 10 ตัวอักษร", "At least 10 characters")}</p>}
+        </div>
+        {mode === "register" && <div className="field"><label htmlFor={`${fid}-n`}>{T("ชื่อ (ไม่บังคับ)", "Name (optional)")}</label><input id={`${fid}-n`} autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>}
+        <p className="field-error" role="alert">{err}</p>
+        {waking && <p className="hint" aria-live="polite">{T("กำลังปลุกเซิร์ฟเวอร์ (แผนฟรีหลับเมื่อไม่มีคนใช้) — อาจใช้ 30–60 วินาที", "Waking the server (free plan sleeps when idle) — may take 30–60 seconds")}</p>}
+        <div className="side-actions">
+          <button type="submit" className="btn btn-outline" disabled={Boolean(busy)}>
+            {busy === mode ? T("กำลังดำเนินการ…", "Working…") : mode === "login" ? T("เข้าสู่ระบบ", "Sign in") : T("สมัครและสร้างร้าน", "Register")}
+          </button>
+        </div>
+      </form>
+      <p className="privacy">{T("รหัสผ่านเก็บแบบ argon2id · เข้าสู่ระบบด้วย access token อายุ 15 นาที + refresh token ที่หมุนทุกครั้งที่ใช้ · โปรเจกต์สาธิต อย่าใช้รหัสผ่านเดียวกับบัญชีสำคัญ", "Passwords hashed with argon2id · 15-minute access tokens + rotating refresh tokens · demo project — don't reuse an important password.")}</p>
+    </div>
+  );
+}
+
 
 /* ------------------------------------------------------------------ PAPER (the printable document) */
 function paperTitle(d: Doc, biz: Business): [string, string] {
@@ -555,58 +691,78 @@ function DocsView({ store, T, money, today, open, newDoc }: Ctx) {
 
 /* ------------------------------------------------------------------ VIEWER */
 function Viewer({ doc, ctx, onPrint }: { doc: Doc; ctx: Ctx; onPrint: (d: Doc) => void }) {
-  const { store, setStore, T, money, show, today, open, edit } = ctx;
+  const { store, actions, act, role, cloud, T, money, show, today, open, edit } = ctx;
   const fid = useId();
   const [paying, setPaying] = useState(false);
+  const [busy, setBusy] = useState(false);
   const bal = doc.type === "INV" ? balance(doc) : 0;
   const [pay, setPay] = useState({ date: today, amount: String(bal), method: "transfer" as Payment["method"], note: "", receipt: true });
   const [err, setErr] = useState("");
+  /** Idempotency-Key ผูกกับเนื้อหาคำขอ: กดซ้ำ/ส่งซ้ำหลังเน็ตหลุด → key เดิม (เซิร์ฟเวอร์ไม่รับเงินซ้ำ) · แก้ยอด → key ใหม่ */
+  const payKey = useRef({ body: "", key: "" });
   const children = store.docs.filter((d) => d.refId === doc.id);
   const parent = doc.refId ? store.docs.find((d) => d.id === doc.refId) : null;
-  const editable = !doc.voided && doc.type !== "RC" && !(doc.type === "INV" && doc.payments.length > 0);
-  const setDoc = (p: Partial<Doc>) => setStore((s) => ({ ...s, docs: s.docs.map((d) => (d.id === doc.id ? { ...d, ...p } : d)) }));
+  const canWrite = role !== "viewer";
+  const editable = canWrite && !doc.voided && doc.type !== "RC" && !(doc.type === "INV" && doc.payments.length > 0);
 
+  async function run(fn: () => Promise<unknown>, ok?: string) {
+    setBusy(true);
+    try {
+      return await act(fn, ok);
+    } finally {
+      setBusy(false);
+    }
+  }
   function convert() {
-    const inv = quoteToInvoice(doc, store.docs, store.biz, today, uid(), uid);
-    setStore((s) => ({ ...s, docs: [...s.docs.map((d) => (d.id === doc.id ? { ...d, quoteStatus: "accepted" as const } : d)), inv] }));
-    show(T(`สร้างใบแจ้งหนี้ ${inv.no} แล้ว`, `Created invoice ${inv.no}`));
-    open(inv.id);
+    void run(async () => {
+      const inv = await actions.convert(doc);
+      show(T(`สร้างใบแจ้งหนี้ ${inv.no} แล้ว`, `Created invoice ${inv.no}`));
+      open(inv.id);
+    });
   }
   function duplicate() {
     const copy: Doc = { ...blankDoc(doc.type === "RC" ? "INV" : doc.type, store.docs, store.biz, null, today, uid()), customerId: doc.customerId, customer: doc.customer, lines: doc.lines.map((l) => ({ ...l, id: uid() })), discount: doc.discount, vatMode: doc.vatMode, whtRate: doc.whtRate, note: doc.note };
     edit(copy);
   }
-  function submitPay(e: React.FormEvent) {
+  async function submitPay(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
+    const input: PayInput = { date: pay.date, amount: num(pay.amount), method: pay.method, note: pay.note, receipt: pay.receipt };
+    if (!(input.amount > 0)) return setErr(T("ใส่จำนวนเงินมากกว่า 0", "Enter an amount above 0"));
+    const body = JSON.stringify(input);
+    if (payKey.current.body !== body) payKey.current = { body, key: cloud.newKey() };
+    setBusy(true);
     try {
-      const r = receivePayment(store.docs, doc.id, { date: pay.date, amount: num(pay.amount), method: pay.method, note: pay.note }, store.biz, { payment: uid(), receipt: pay.receipt ? uid() : null, line: uid });
-      setStore((s) => ({ ...s, docs: r.docs }));
+      const r = await actions.pay(doc, input, payKey.current.key);
+      payKey.current = { body: "", key: "" };
       setPaying(false);
       setErr("");
-      show(r.receipt ? T(`รับชำระแล้ว · ออกใบเสร็จ ${r.receipt.no}`, `Payment recorded · receipt ${r.receipt.no}`) : T("บันทึกการรับชำระแล้ว", "Payment recorded"));
+      show(r.receiptNo ? T(`รับชำระแล้ว · ออกใบเสร็จ ${r.receiptNo}`, `Payment recorded · receipt ${r.receiptNo}`) : T("บันทึกการรับชำระแล้ว", "Payment recorded"));
     } catch (x) {
-      setErr((x as Error).message);
+      setErr(errorText(x));
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <div className="viewer">
+    <div className="viewer" aria-busy={busy || undefined}>
       <div className="viewer-actions side-actions">
         <button type="button" className="btn btn-primary btn-sm" onClick={() => onPrint(doc)}>{T("พิมพ์ / บันทึก PDF", "Print / save PDF")}</button>
         {editable && <button type="button" className="btn btn-outline btn-sm" onClick={() => edit(doc)}>{T("แก้ไข", "Edit")}</button>}
-        {doc.type !== "RC" && <button type="button" className="btn btn-outline btn-sm" onClick={duplicate}>{T("ทำสำเนา", "Duplicate")}</button>}
-        {doc.type === "QT" && !doc.voided && !children.some((c) => c.type === "INV" && !c.voided) && doc.quoteStatus !== "rejected" && (
-          <button type="button" className="btn btn-outline btn-sm" onClick={convert}>{T("แปลงเป็นใบแจ้งหนี้", "Convert to invoice")}</button>
+        {canWrite && doc.type !== "RC" && <button type="button" className="btn btn-outline btn-sm" onClick={duplicate}>{T("ทำสำเนา", "Duplicate")}</button>}
+        {canWrite && doc.type === "QT" && !doc.voided && !children.some((c) => c.type === "INV" && !c.voided) && doc.quoteStatus !== "rejected" && (
+          <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={convert}>{T("แปลงเป็นใบแจ้งหนี้", "Convert to invoice")}</button>
         )}
-        {doc.type === "INV" && !doc.voided && bal > 0 && !paying && (
+        {canWrite && doc.type === "INV" && !doc.voided && bal > 0 && !paying && (
           <button type="button" className="btn btn-outline btn-sm" onClick={() => { setPay({ date: today, amount: String(bal), method: "transfer", note: "", receipt: true }); setErr(""); setPaying(true); }}>{T("รับชำระเงิน", "Record payment")}</button>
         )}
       </div>
 
-      {doc.type === "QT" && !doc.voided && (
+      {canWrite && doc.type === "QT" && !doc.voided && (
         <div className="seg qt-status" role="group" aria-label={T("สถานะใบเสนอราคา", "Quote status")}>
           {(Object.keys(QT_STATUS) as QuoteStatus[]).map((k) => (
-            <button key={k} type="button" aria-pressed={doc.quoteStatus === k} onClick={() => setDoc({ quoteStatus: k })}>{T(...QT_STATUS[k])}</button>
+            <button key={k} type="button" aria-pressed={doc.quoteStatus === k} disabled={busy} onClick={() => doc.quoteStatus !== k && void run(() => actions.setQuoteStatus(doc, k))}>{T(...QT_STATUS[k])}</button>
           ))}
         </div>
       )}
@@ -629,7 +785,7 @@ function Viewer({ doc, ctx, onPrint }: { doc: Doc; ctx: Ctx; onPrint: (d: Doc) =
           <label className="check-row"><input type="checkbox" checked={pay.receipt} onChange={(e) => setPay({ ...pay, receipt: e.target.checked })} />{T("ออกใบเสร็จรับเงินอัตโนมัติ", "Issue a receipt automatically")}</label>
           <p className="field-error" id={`${fid}-pe`} role="alert">{err}</p>
           <div className="side-actions">
-            <button type="submit" className="btn btn-primary btn-sm">{T("บันทึกรับชำระ", "Save payment")}</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? T("กำลังบันทึก…", "Saving…") : T("บันทึกรับชำระ", "Save payment")}</button>
             <button type="button" className="text-link" onClick={() => setPaying(false)}>{T("ยกเลิก", "Cancel")}</button>
           </div>
         </form>
@@ -656,12 +812,12 @@ function Viewer({ doc, ctx, onPrint }: { doc: Doc; ctx: Ctx; onPrint: (d: Doc) =
         </div>
       )}
 
-      {!doc.voided && (
+      {canWrite && !doc.voided && (
         <div className="side-actions">
           <ConfirmButton
             label={T("ยกเลิกเอกสารนี้", "Void this document")}
             confirmLabel={T("กดอีกครั้ง — เลขที่นี้จะถูกเก็บไว้แต่ไม่นับยอด", "Tap again — the number is kept but excluded")}
-            onConfirm={() => { setDoc({ voided: true }); show(T(`ยกเลิก ${doc.no} แล้ว`, `${doc.no} voided`)); }}
+            onConfirm={() => void run(() => actions.voidDoc(doc), T(`ยกเลิก ${doc.no} แล้ว`, `${doc.no} voided`))}
           />
         </div>
       )}
@@ -670,11 +826,12 @@ function Viewer({ doc, ctx, onPrint }: { doc: Doc; ctx: Ctx; onPrint: (d: Doc) =
 }
 
 /* ------------------------------------------------------------------ EDITOR */
-function Editor({ draft, ctx, onCancel, onSave }: { draft: Doc; ctx: Ctx; onCancel: () => void; onSave: (d: Doc, newCustomer: Customer | null) => void }) {
-  const { store, T, money, today } = ctx;
+function Editor({ draft, ctx, onCancel, onSave }: { draft: Doc; ctx: Ctx; onCancel: () => void; onSave: (d: Doc, newCustomer: Customer | null) => Promise<void> }) {
+  const { store, T, money, today, online } = ctx;
   const fid = useId();
   const [d, setD] = useState<Doc>(draft);
   const [errors, setErrors] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
   const set = (p: Partial<Doc>) => setD((x) => ({ ...x, ...p }));
   const setLine = (i: number, p: Partial<Line>) => setD((x) => ({ ...x, lines: x.lines.map((l, j) => (j === i ? { ...l, ...p } : l)) }));
   const addLine = (item?: CatalogItem) => setD((x) => ({ ...x, lines: [...x.lines, { id: uid(), description: item?.name ?? "", qty: 1, unit: item?.unit ?? "", price: item?.price ?? 0 }] }));
@@ -697,16 +854,18 @@ function Editor({ draft, ctx, onCancel, onSave }: { draft: Doc; ctx: Ctx; onCanc
     const c = store.customers.find((x) => x.id === id);
     set(c ? { customerId: c.id, customer: snapshot(c) } : { customerId: "", customer: { name: "", taxId: "", branch: "", address: "", phone: "", email: "" } });
   }
-  function save(e: React.FormEvent) {
+  async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     const lines = d.lines.filter((l) => l.description.trim() || l.price);
     const errs: string[] = [];
     if (!d.customer.name.trim()) errs.push(T("ใส่ชื่อลูกค้า", "Enter the customer name"));
     if (!lines.length) errs.push(T("ใส่อย่างน้อย 1 รายการ", "Add at least one line"));
     if (lines.some((l) => !l.description.trim())) errs.push(T("ทุกรายการต้องมีชื่อ", "Every line needs a description"));
     if (lines.some((l) => !(l.qty > 0))) errs.push(T("จำนวนต้องมากกว่า 0", "Quantity must be above 0"));
-    if (!d.no.trim()) errs.push(T("ใส่เลขที่เอกสาร", "Enter a document number"));
-    if (store.docs.some((x) => x.id !== d.id && x.type === d.type && x.no === d.no.trim())) errs.push(T("เลขที่เอกสารซ้ำ", "Duplicate document number"));
+    if (!online && !d.no.trim()) errs.push(T("ใส่เลขที่เอกสาร", "Enter a document number"));
+    if (!online && store.docs.some((x) => x.id !== d.id && x.type === d.type && x.no === d.no.trim())) errs.push(T("เลขที่เอกสารซ้ำ", "Duplicate document number"));
+    if (d.due && d.due < d.date) errs.push(d.type === "QT" ? T("วันยืนราคาต้องไม่ก่อนวันที่เอกสาร", "Valid-until date can't be before the document date") : T("วันครบกำหนดต้องไม่ก่อนวันที่เอกสาร", "Due date can't be before the document date"));
     if (tidErr) errs.push(tidErr);
     setErrors(errs);
     if (errs.length) return;
@@ -720,7 +879,13 @@ function Editor({ draft, ctx, onCancel, onSave }: { draft: Doc; ctx: Ctx; onCanc
         doc = { ...doc, customerId: newCustomer.id };
       }
     }
-    onSave(doc, newCustomer);
+    setSaving(true);
+    try {
+      await onSave(doc, newCustomer);
+    } catch (x) {
+      setErrors([errorText(x)]);
+      setSaving(false);
+    }
   }
 
   const itemsList = `${fid}-items`;
@@ -735,7 +900,17 @@ function Editor({ draft, ctx, onCancel, onSave }: { draft: Doc; ctx: Ctx; onCanc
         <fieldset className="ed-group">
           <legend>{T("เอกสาร", "Document")}</legend>
           <div className="ed-grid-3">
-            <div className="field"><label htmlFor={`${fid}-no`}>{T("เลขที่", "Number")}</label><input id={`${fid}-no`} value={d.no} onChange={(e) => set({ no: e.target.value })} /></div>
+            <div className="field">
+              <label htmlFor={`${fid}-no`}>{T("เลขที่", "Number")}</label>
+              {online ? (
+                <>
+                  <input id={`${fid}-no`} value={isNew ? T("ออกให้เมื่อบันทึก", "Assigned on save") : d.no} readOnly aria-describedby={`${fid}-noh`} />
+                  <p className="field-hint-muted" id={`${fid}-noh`}>{T("เซิร์ฟเวอร์ออกเลขให้ ไม่ซ้ำ ไม่ข้าม", "Issued by the server — no gaps, no duplicates")}</p>
+                </>
+              ) : (
+                <input id={`${fid}-no`} value={d.no} onChange={(e) => set({ no: e.target.value })} />
+              )}
+            </div>
             <div className="field"><label htmlFor={`${fid}-dt`}>{T("วันที่", "Date")}</label><input id={`${fid}-dt`} type="date" value={d.date} onChange={(e) => set({ date: e.target.value || today })} /></div>
             <div className="field">
               <label htmlFor={`${fid}-due`}>{d.type === "QT" ? T("ยืนราคาถึง", "Valid until") : T("ครบกำหนดชำระ", "Due date")}</label>
@@ -832,7 +1007,7 @@ function Editor({ draft, ctx, onCancel, onSave }: { draft: Doc; ctx: Ctx; onCanc
         </div>
         {errors.length > 0 && <div className="alert" role="alert"><ul>{errors.map((x) => <li key={x}>{x}</li>)}</ul></div>}
         <div className="side-actions">
-          <button type="submit" className="btn btn-primary">{T("บันทึกเอกสาร", "Save document")}</button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? T("กำลังบันทึก…", "Saving…") : T("บันทึกเอกสาร", "Save document")}</button>
           <button type="button" className="btn btn-outline" onClick={onCancel}>{T("ยกเลิก", "Cancel")}</button>
         </div>
       </form>
@@ -845,8 +1020,16 @@ function Editor({ draft, ctx, onCancel, onSave }: { draft: Doc; ctx: Ctx; onCanc
 }
 
 /* ------------------------------------------------------------------ CUSTOMERS */
-function CustomersView({ store, setStore, T, money, show, newDoc }: Ctx) {
+function CustomersView({ store, actions, act, role, T, money, newDoc }: Ctx) {
   const fid = useId();
+  const [busy, setBusy] = useState(false);
+  const canWrite = role !== "viewer";
+  async function run(fn: () => Promise<unknown>, ok?: string) {
+    setBusy(true);
+    const done = await act(fn, ok);
+    setBusy(false);
+    if (done) setEdit(null);
+  }
   const [edit, setEdit] = useState<Customer | null>(null);
   const [stmt, setStmt] = useState<Customer | null>(null);
   const [q, setQ] = useState("");
@@ -858,7 +1041,7 @@ function CustomersView({ store, setStore, T, money, show, newDoc }: Ctx) {
     <section className="panel">
       <div className="panel-row">
         <h2 className="panel-title">{T("ลูกค้า", "Customers")} <span className="muted-count">({store.customers.length})</span></h2>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => setEdit({ id: uid(), name: "", taxId: "", branch: "สำนักงานใหญ่", address: "", phone: "", email: "" })}>+ {T("เพิ่มลูกค้า", "Add customer")}</button>
+        {canWrite && <button type="button" className="btn btn-primary btn-sm" onClick={() => setEdit({ id: uid(), name: "", taxId: "", branch: "สำนักงานใหญ่", address: "", phone: "", email: "" })}>+ {T("เพิ่มลูกค้า", "Add customer")}</button>}
       </div>
       <div className="field field--inline bl-search"><label htmlFor={`${fid}-q`}>{T("ค้นหา", "Search")}</label><input id={`${fid}-q`} type="search" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       {list.length === 0 ? <p className="hint">{T("ยังไม่มีลูกค้า — ลูกค้าจะถูกบันทึกอัตโนมัติเมื่อออกเอกสารให้ลูกค้าใหม่", "No customers yet — they're saved automatically when you issue a document.")}</p> : (
@@ -885,11 +1068,9 @@ function CustomersView({ store, setStore, T, money, show, newDoc }: Ctx) {
         {edit && (
           <form className="stack-form" noValidate onSubmit={(e) => {
             e.preventDefault();
-            if (!edit.name.trim() || err) return;
+            if (!edit.name.trim() || err || busy) return;
             const c = { ...edit, name: edit.name.trim() };
-            setStore((s) => ({ ...s, customers: s.customers.some((x) => x.id === c.id) ? s.customers.map((x) => (x.id === c.id ? c : x)) : [...s.customers, c] }));
-            setEdit(null);
-            show(T("บันทึกลูกค้าแล้ว", "Customer saved"));
+            void run(() => actions.saveCustomer(c, !store.customers.some((x) => x.id === c.id)), T("บันทึกลูกค้าแล้ว", "Customer saved"));
           }}>
             <div className="field"><label htmlFor={`${fid}-n`}>{T("ชื่อ / บริษัท", "Name / company")}</label><input id={`${fid}-n`} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} aria-invalid={!edit.name.trim() || undefined} autoFocus /></div>
             <div className="grid-2">
@@ -904,10 +1085,10 @@ function CustomersView({ store, setStore, T, money, show, newDoc }: Ctx) {
             </div>
             <div className="field"><label htmlFor={`${fid}-a`}>{T("ที่อยู่ (สำหรับออกเอกสาร)", "Billing address")}</label><textarea id={`${fid}-a`} rows={3} value={edit.address} onChange={(e) => setEdit({ ...edit, address: e.target.value })} /></div>
             <div className="side-actions">
-              <button type="submit" className="btn btn-primary btn-sm" disabled={!edit.name.trim() || Boolean(err)}>{T("บันทึก", "Save")}</button>
-              {store.customers.some((c) => c.id === edit.id) && (used(edit.id)
+              <button type="submit" className="btn btn-primary btn-sm" disabled={!canWrite || busy || !edit.name.trim() || Boolean(err)}>{busy ? T("กำลังบันทึก…", "Saving…") : T("บันทึก", "Save")}</button>
+              {canWrite && store.customers.some((c) => c.id === edit.id) && (used(edit.id)
                 ? <span className="hint">{T("ลบไม่ได้เพราะมีเอกสารของลูกค้านี้", "Can't delete — has documents")}</span>
-                : <ConfirmButton label={T("ลบลูกค้า", "Delete")} confirmLabel={T("กดอีกครั้งเพื่อลบ", "Tap again")} onConfirm={() => { setStore((s) => ({ ...s, customers: s.customers.filter((c) => c.id !== edit.id) })); setEdit(null); }} />)}
+                : <ConfirmButton label={T("ลบลูกค้า", "Delete")} confirmLabel={T("กดอีกครั้งเพื่อลบ", "Tap again")} onConfirm={() => void run(() => actions.deleteCustomer(edit.id), T("ลบลูกค้าแล้ว", "Customer deleted"))} />)}
             </div>
           </form>
         )}
@@ -935,38 +1116,36 @@ function CustomersView({ store, setStore, T, money, show, newDoc }: Ctx) {
 }
 
 /* ------------------------------------------------------------------ ITEMS */
-function ItemsView({ store, setStore, T, money }: Ctx) {
+function ItemsView({ store, actions, act, role, T, money }: Ctx) {
   const fid = useId();
   const [draft, setDraft] = useState({ name: "", unit: "", price: "" });
-  const setItem = (id: string, p: Partial<CatalogItem>) => setStore((s) => ({ ...s, items: s.items.map((x) => (x.id === id ? { ...x, ...p } : x)) }));
+  const [busy, setBusy] = useState(false);
+  const canWrite = role !== "viewer";
   return (
     <section className="panel">
       <h2 className="panel-title">{T("สินค้า / บริการ", "Products & services")} <span className="muted-count">({store.items.length})</span></h2>
       <p className="hint">{T("รายการที่ใช้บ่อย — ตอนออกเอกสารเลือกจากรายการนี้ได้ ราคาและหน่วยจะเติมให้เอง", "Frequently used items — pick them in the editor to fill unit and price.")}</p>
-      <form className="item-add" onSubmit={(e) => {
-        e.preventDefault();
-        if (!draft.name.trim()) return;
-        setStore((s) => ({ ...s, items: [...s.items, { id: uid(), name: draft.name.trim(), unit: draft.unit.trim(), price: num(draft.price) }] }));
-        setDraft({ name: "", unit: "", price: "" });
-      }}>
-        <div className="field"><label htmlFor={`${fid}-n`}>{T("ชื่อสินค้า/บริการ", "Name")}</label><input id={`${fid}-n`} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></div>
-        <div className="field"><label htmlFor={`${fid}-u`}>{T("หน่วย", "Unit")}</label><input id={`${fid}-u`} value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} placeholder={T("ชิ้น / งาน / ชั่วโมง", "pc / job / hr")} /></div>
-        <div className="field"><label htmlFor={`${fid}-p`}>{T("ราคา", "Price")}</label><input id={`${fid}-p`} type="number" inputMode="decimal" min={0} step="any" value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} /></div>
-        <button type="submit" className="btn btn-primary btn-sm" disabled={!draft.name.trim()}>{T("เพิ่ม", "Add")}</button>
-      </form>
+      {canWrite && (
+        <form className="item-add" onSubmit={async (e) => {
+          e.preventDefault();
+          if (!draft.name.trim() || busy) return;
+          setBusy(true);
+          const ok = await act(() => actions.addItem({ name: draft.name.trim(), unit: draft.unit.trim(), price: Math.max(0, num(draft.price)) }));
+          setBusy(false);
+          if (ok) setDraft({ name: "", unit: "", price: "" });
+        }}>
+          <div className="field"><label htmlFor={`${fid}-n`}>{T("ชื่อสินค้า/บริการ", "Name")}</label><input id={`${fid}-n`} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></div>
+          <div className="field"><label htmlFor={`${fid}-u`}>{T("หน่วย", "Unit")}</label><input id={`${fid}-u`} value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} placeholder={T("ชิ้น / งาน / ชั่วโมง", "pc / job / hr")} /></div>
+          <div className="field"><label htmlFor={`${fid}-p`}>{T("ราคา", "Price")}</label><input id={`${fid}-p`} type="number" inputMode="decimal" min={0} step="any" value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} /></div>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={!draft.name.trim() || busy}>{T("เพิ่ม", "Add")}</button>
+        </form>
+      )}
       {store.items.length > 0 && (
         <div className="table-wrap" tabIndex={0} role="region" aria-label={T("ตารางสินค้า/บริการ", "Items table")}>
           <table className="docs items-table">
             <thead><tr><th scope="col">{T("ชื่อ", "Name")}</th><th scope="col">{T("หน่วย", "Unit")}</th><th scope="col">{T("ราคา", "Price")}</th><th scope="col"><span className="sr-only">{T("ลบ", "Delete")}</span></th></tr></thead>
             <tbody>
-              {store.items.map((it) => (
-                <tr key={it.id}>
-                  <td><input aria-label={T("ชื่อ", "Name")} value={it.name} onChange={(e) => setItem(it.id, { name: e.target.value })} /></td>
-                  <td><input aria-label={`${T("หน่วยของ", "Unit of")} ${it.name}`} value={it.unit} onChange={(e) => setItem(it.id, { unit: e.target.value })} /></td>
-                  <td><input aria-label={`${T("ราคาของ", "Price of")} ${it.name}`} type="number" inputMode="decimal" min={0} step="any" value={it.price} onChange={(e) => setItem(it.id, { price: num(e.target.value) })} /><span className="sr-only">{money(it.price)}</span></td>
-                  <td><button type="button" className="icon-btn icon-btn--sm" aria-label={`${T("ลบ", "Delete")} ${it.name}`} onClick={() => setStore((s) => ({ ...s, items: s.items.filter((x) => x.id !== it.id) }))}>✕</button></td>
-                </tr>
-              ))}
+              {store.items.map((it) => <ItemRow key={it.id} item={it} ctx={{ actions, act, T, money, canWrite }} />)}
             </tbody>
           </table>
         </div>
@@ -975,79 +1154,153 @@ function ItemsView({ store, setStore, T, money }: Ctx) {
   );
 }
 
+/** แถวสินค้า: แก้ในช่องได้เลย บันทึกเมื่อออกจากช่อง (โหมดออนไลน์จึงไม่ยิง API ทุกตัวอักษร) */
+function ItemRow({ item, ctx }: { item: CatalogItem; ctx: Pick<Ctx, "actions" | "act" | "T" | "money"> & { canWrite: boolean } }) {
+  const { actions, act, T, money, canWrite } = ctx;
+  const [v, setV] = useState({ name: item.name, unit: item.unit, price: String(item.price) });
+  useEffect(() => setV({ name: item.name, unit: item.unit, price: String(item.price) }), [item.name, item.unit, item.price]);
+  function commit() {
+    const p: Partial<CatalogItem> = {};
+    if (v.name.trim() && v.name.trim() !== item.name) p.name = v.name.trim();
+    if (v.unit.trim() !== item.unit) p.unit = v.unit.trim();
+    const price = Math.max(0, num(v.price));
+    if (Number.isFinite(price) && price !== item.price) p.price = price;
+    if (!v.name.trim()) setV((x) => ({ ...x, name: item.name }));
+    if (Object.keys(p).length) void act(() => actions.updateItem(item.id, p));
+  }
+  return (
+    <tr>
+      <td><input aria-label={T("ชื่อ", "Name")} value={v.name} readOnly={!canWrite} onChange={(e) => setV({ ...v, name: e.target.value })} onBlur={commit} /></td>
+      <td><input aria-label={`${T("หน่วยของ", "Unit of")} ${item.name}`} value={v.unit} readOnly={!canWrite} onChange={(e) => setV({ ...v, unit: e.target.value })} onBlur={commit} /></td>
+      <td><input aria-label={`${T("ราคาของ", "Price of")} ${item.name}`} type="number" inputMode="decimal" min={0} step="any" value={v.price} readOnly={!canWrite} onChange={(e) => setV({ ...v, price: e.target.value })} onBlur={commit} /><span className="sr-only">{money(item.price)}</span></td>
+      <td>{canWrite && <button type="button" className="icon-btn icon-btn--sm" aria-label={`${T("ลบ", "Delete")} ${item.name}`} onClick={() => void act(() => actions.deleteItem(item.id))}>✕</button>}</td>
+    </tr>
+  );
+}
+
 /* ------------------------------------------------------------------ SETTINGS */
-function SettingsView({ store, setStore, T, show, today }: Ctx) {
+const PREFIX = (v: string, fallback: string) => v.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10) || fallback;
+
+function SettingsView({ store, actions, act, online, role, local, cloud, T, show, today }: Ctx) {
   const fid = useId();
   const fileRef = useRef<HTMLInputElement>(null);
-  const bz = store.biz;
-  const set = (p: Partial<Business>) => setStore((s) => ({ ...s, biz: { ...s.biz, ...p } }));
+  // ฉบับร่างในฟอร์ม — บันทึกเมื่อออกจากช่อง (ออนไลน์: PATCH เฉพาะช่องที่เปลี่ยน)
+  const [bz, setBz] = useState<Business>(store.biz);
+  const [importing, setImporting] = useState(false);
+  const canEdit = role === "owner";
+  const set = (p: Partial<Business>) => setBz((x) => ({ ...x, ...p }));
   const tErr = taxIdError(bz.taxId);
-  const pp = sanitizeId(bz.promptpay);
-  const ppErr = pp && !detectKind(pp) ? T("ใส่เบอร์มือถือ 10 หลัก หรือเลข 13 หลัก", "Use a 10-digit mobile or 13-digit ID") : "";
+  const ppOf = (b: Business) => sanitizeId(b.promptpay);
+  const ppBad = (b: Business) => Boolean(ppOf(b)) && !detectKind(ppOf(b));
+  const ppErr = ppBad(bz) ? T("ใส่เบอร์มือถือ 10 หลัก หรือเลข 13 หลัก", "Use a 10-digit mobile or 13-digit ID") : "";
+
+  function flush(next: Business = bz) {
+    if (!canEdit) return;
+    const patch: Partial<Business> = {};
+    for (const k of Object.keys(next) as (keyof Business)[]) {
+      if (JSON.stringify(next[k]) !== JSON.stringify(store.biz[k])) (patch as Record<string, unknown>)[k] = next[k];
+    }
+    if (taxIdError(next.taxId)) delete patch.taxId;
+    if (ppBad(next)) delete patch.promptpay;
+    if (!next.name.trim()) delete patch.name;
+    if (Object.keys(patch).length) void act(() => actions.updateBiz(patch), online ? T("บันทึกแล้ว", "Saved") : undefined);
+  }
+  const blur = { onBlur: () => flush() };
+
+  async function importLocal() {
+    setImporting(true);
+    try {
+      const r = await cloud.importLocal(local);
+      show(T(`นำขึ้นแล้ว: เอกสาร ${r.docs} ใบ ลูกค้า ${r.customers} ราย สินค้า ${r.items} รายการ`, `Imported ${r.docs} documents, ${r.customers} customers, ${r.items} items`));
+    } catch (e) {
+      show(errorText(e));
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div className="report-grid">
       <section className="panel">
         <h2 className="panel-title">{T("ข้อมูลกิจการ (หัวเอกสาร)", "Business details (letterhead)")}</h2>
-        <div className="stack-form">
-          <div className="field"><label htmlFor={`${fid}-n`}>{T("ชื่อกิจการ / บริษัท", "Business name")}</label><input id={`${fid}-n`} value={bz.name} onChange={(e) => set({ name: e.target.value })} /></div>
+        {!canEdit && <p className="hint">{T("เฉพาะเจ้าของร้านแก้ข้อมูลส่วนนี้ได้", "Only the owner can change these.")}</p>}
+        <fieldset className="stack-form plain-fieldset" disabled={!canEdit}>
+          <div className="field"><label htmlFor={`${fid}-n`}>{T("ชื่อกิจการ / บริษัท", "Business name")}</label><input id={`${fid}-n`} value={bz.name} onChange={(e) => set({ name: e.target.value })} {...blur} /></div>
           <div className="grid-2">
             <div className="field">
               <label htmlFor={`${fid}-t`}>{T("เลขประจำตัวผู้เสียภาษี", "Tax ID")}</label>
-              <input id={`${fid}-t`} inputMode="numeric" value={bz.taxId} onChange={(e) => set({ taxId: e.target.value })} aria-invalid={Boolean(tErr) || undefined} aria-describedby={`${fid}-te`} />
+              <input id={`${fid}-t`} inputMode="numeric" value={bz.taxId} onChange={(e) => set({ taxId: e.target.value })} {...blur} aria-invalid={Boolean(tErr) || undefined} aria-describedby={`${fid}-te`} />
               <p className="field-error" id={`${fid}-te`}>{tErr ?? ""}</p>
             </div>
-            <div className="field"><label htmlFor={`${fid}-b`}>{T("สาขา", "Branch")}</label><input id={`${fid}-b`} value={bz.branch} onChange={(e) => set({ branch: e.target.value })} /></div>
-            <div className="field"><label htmlFor={`${fid}-p`}>{T("โทร", "Phone")}</label><input id={`${fid}-p`} type="tel" value={bz.phone} onChange={(e) => set({ phone: e.target.value })} /></div>
-            <div className="field"><label htmlFor={`${fid}-e`}>{T("อีเมล", "Email")}</label><input id={`${fid}-e`} type="email" value={bz.email} onChange={(e) => set({ email: e.target.value })} /></div>
+            <div className="field"><label htmlFor={`${fid}-b`}>{T("สาขา", "Branch")}</label><input id={`${fid}-b`} value={bz.branch} onChange={(e) => set({ branch: e.target.value })} {...blur} /></div>
+            <div className="field"><label htmlFor={`${fid}-p`}>{T("โทร", "Phone")}</label><input id={`${fid}-p`} type="tel" value={bz.phone} onChange={(e) => set({ phone: e.target.value })} {...blur} /></div>
+            <div className="field"><label htmlFor={`${fid}-e`}>{T("อีเมล", "Email")}</label><input id={`${fid}-e`} type="email" value={bz.email} onChange={(e) => set({ email: e.target.value })} {...blur} /></div>
           </div>
-          <div className="field"><label htmlFor={`${fid}-a`}>{T("ที่อยู่", "Address")}</label><textarea id={`${fid}-a`} rows={2} value={bz.address} onChange={(e) => set({ address: e.target.value })} /></div>
-          <div className="field"><label htmlFor={`${fid}-s`}>{T("ชื่อผู้ลงนาม", "Signatory")}</label><input id={`${fid}-s`} value={bz.signer} onChange={(e) => set({ signer: e.target.value })} /></div>
+          <div className="field"><label htmlFor={`${fid}-a`}>{T("ที่อยู่", "Address")}</label><textarea id={`${fid}-a`} rows={2} value={bz.address} onChange={(e) => set({ address: e.target.value })} {...blur} /></div>
+          <div className="field"><label htmlFor={`${fid}-s`}>{T("ชื่อผู้ลงนาม", "Signatory")}</label><input id={`${fid}-s`} value={bz.signer} onChange={(e) => set({ signer: e.target.value })} {...blur} /></div>
           <div className="field">
             <label htmlFor={`${fid}-pp`}>{T("พร้อมเพย์รับเงิน (QR จะขึ้นบนใบแจ้งหนี้ที่ยังค้าง)", "PromptPay (QR on unpaid invoices)")}</label>
-            <input id={`${fid}-pp`} inputMode="numeric" value={bz.promptpay} onChange={(e) => set({ promptpay: e.target.value })} aria-invalid={Boolean(ppErr) || undefined} aria-describedby={`${fid}-ppe`} />
+            <input id={`${fid}-pp`} inputMode="numeric" value={bz.promptpay} onChange={(e) => set({ promptpay: e.target.value })} {...blur} aria-invalid={Boolean(ppErr) || undefined} aria-describedby={`${fid}-ppe`} />
             <p className="field-error" id={`${fid}-ppe`}>{ppErr}</p>
           </div>
-        </div>
+        </fieldset>
       </section>
       <section className="panel">
         <h2 className="panel-title">{T("การออกเอกสาร", "Document settings")}</h2>
-        <div className="stack-form">
-          <label className="check-row"><input type="checkbox" checked={bz.vatRegistered} onChange={(e) => set({ vatRegistered: e.target.checked })} />{T("จดทะเบียนภาษีมูลค่าเพิ่ม (VAT) แล้ว", "VAT-registered")}</label>
+        <fieldset className="stack-form plain-fieldset" disabled={!canEdit}>
+          <label className="check-row"><input type="checkbox" checked={bz.vatRegistered} onChange={(e) => { const n = { ...bz, vatRegistered: e.target.checked }; setBz(n); flush(n); }} />{T("จดทะเบียนภาษีมูลค่าเพิ่ม (VAT) แล้ว", "VAT-registered")}</label>
           <p className="hint">{T("ถ้าจด VAT เอกสารใหม่จะตั้งเป็น “บวก VAT 7%” และใบเสร็จจะเป็น “ใบเสร็จรับเงิน/ใบกำกับภาษี”", "New documents default to +7% VAT and receipts become tax invoices.")}</p>
           <div className="grid-2">
-            <div className="field"><label htmlFor={`${fid}-dd`}>{T("เครดิต (วัน)", "Payment terms (days)")}</label><input id={`${fid}-dd`} type="number" min={0} value={bz.dueDays} onChange={(e) => set({ dueDays: Math.max(0, num(e.target.value)) })} /></div>
-            <div className="field"><label htmlFor={`${fid}-vd`}>{T("ยืนราคา (วัน)", "Quote valid (days)")}</label><input id={`${fid}-vd`} type="number" min={0} value={bz.validDays} onChange={(e) => set({ validDays: Math.max(0, num(e.target.value)) })} /></div>
+            <div className="field"><label htmlFor={`${fid}-dd`}>{T("เครดิต (วัน)", "Payment terms (days)")}</label><input id={`${fid}-dd`} type="number" min={0} max={365} value={bz.dueDays} onChange={(e) => set({ dueDays: Math.min(365, Math.max(0, Math.round(num(e.target.value)))) })} {...blur} /></div>
+            <div className="field"><label htmlFor={`${fid}-vd`}>{T("ยืนราคา (วัน)", "Quote valid (days)")}</label><input id={`${fid}-vd`} type="number" min={0} max={365} value={bz.validDays} onChange={(e) => set({ validDays: Math.min(365, Math.max(0, Math.round(num(e.target.value)))) })} {...blur} /></div>
           </div>
           <fieldset className="ed-group">
             <legend>{T("ตัวนำหน้าเลขที่เอกสาร", "Number prefixes")}</legend>
             <div className="ed-grid-3">
               {(["QT", "INV", "RC"] as const).map((k) => (
-                <div className="field" key={k}><label htmlFor={`${fid}-px-${k}`}>{T(...TYPE_LABEL[k])}</label><input id={`${fid}-px-${k}`} value={bz.prefixes[k]} onChange={(e) => set({ prefixes: { ...bz.prefixes, [k]: e.target.value.replace(/\s/g, "").toUpperCase() || k } })} /></div>
+                <div className="field" key={k}><label htmlFor={`${fid}-px-${k}`}>{T(...TYPE_LABEL[k])}</label><input id={`${fid}-px-${k}`} value={bz.prefixes[k]} maxLength={10} onChange={(e) => set({ prefixes: { ...bz.prefixes, [k]: PREFIX(e.target.value, k) } })} {...blur} /></div>
               ))}
             </div>
             <p className="hint">{T(`รูปแบบ: ${bz.prefixes.INV}-${today.slice(0, 7).replace("-", "")}-001 (เริ่มนับใหม่ทุกเดือน)`, `Format: ${bz.prefixes.INV}-${today.slice(0, 7).replace("-", "")}-001 (resets monthly)`)}</p>
           </fieldset>
-        </div>
+        </fieldset>
         <p className="mini-title">{T(`ข้อมูล (${store.docs.length} เอกสาร, ${store.customers.length} ลูกค้า)`, `Data (${store.docs.length} documents, ${store.customers.length} customers)`)}</p>
         <div className="side-actions">
           <button type="button" className="btn btn-outline btn-sm" onClick={() => download(`billing-backup-${today}.json`, JSON.stringify(store), "application/json")}>{T("สำรองข้อมูล", "Back up")}</button>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => fileRef.current?.click()}>{T("กู้คืนจากไฟล์", "Restore")}</button>
-          <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={async (e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (!f) return;
-            try {
-              const d = JSON.parse(await readFile(f)) as Store;
-              if (!Array.isArray(d.docs) || !Array.isArray(d.customers) || typeof d.biz !== "object") throw new Error();
-              setStore(() => ({ ...empty(), ...d, biz: { ...defaultBiz, ...d.biz } }));
-              show(T("กู้คืนข้อมูลแล้ว", "Restored"));
-            } catch {
-              show(T("ไฟล์นี้ไม่ใช่ไฟล์สำรองของระบบเอกสาร", "Not a billing backup file"));
-            }
-          }} />
-          <ConfirmButton label={T("ล้างข้อมูลทั้งหมด", "Delete all data")} confirmLabel={T("กดอีกครั้งเพื่อลบทุกอย่าง", "Tap again to delete everything")} onConfirm={() => setStore(() => empty())} />
+          {online ? (
+            canEdit && store.docs.length === 0 && (local.docs.length > 0 || local.customers.length > 0) && (
+              <button type="button" className="btn btn-primary btn-sm" disabled={importing} onClick={() => void importLocal()}>
+                {importing ? T("กำลังนำขึ้น…", "Importing…") : T(`นำข้อมูลในเครื่องขึ้นร้านนี้ (${local.docs.length} เอกสาร)`, `Import this device's data (${local.docs.length} documents)`)}
+              </button>
+            )
+          ) : (
+            <>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => fileRef.current?.click()}>{T("กู้คืนจากไฟล์", "Restore")}</button>
+              <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (!f) return;
+                try {
+                  const d = JSON.parse(await readFile(f)) as Store;
+                  if (!Array.isArray(d.docs) || !Array.isArray(d.customers) || typeof d.biz !== "object") throw new Error();
+                  const next = { ...empty(), ...d, biz: { ...defaultBiz, ...d.biz } };
+                  await actions.replaceAll?.(next);
+                  setBz(next.biz);
+                  show(T("กู้คืนข้อมูลแล้ว", "Restored"));
+                } catch {
+                  show(T("ไฟล์นี้ไม่ใช่ไฟล์สำรองของระบบเอกสาร", "Not a billing backup file"));
+                }
+              }} />
+              <ConfirmButton label={T("ล้างข้อมูลทั้งหมด", "Delete all data")} confirmLabel={T("กดอีกครั้งเพื่อลบทุกอย่าง", "Tap again to delete everything")} onConfirm={() => { void actions.replaceAll?.(empty()); setBz(defaultBiz); }} />
+            </>
+          )}
         </div>
-        <p className="privacy">{T("ข้อมูลลูกค้าและเอกสารเก็บในเบราว์เซอร์เครื่องนี้เท่านั้น ไม่ถูกส่งไปที่ใด — สำรองไฟล์เป็นประจำ · ระบบนี้ช่วยออกเอกสาร ไม่ใช่คำแนะนำทางภาษี ควรตรวจกับนักบัญชี", "Data stays in this browser. Back up regularly. This tool prepares documents; it isn't tax advice — check with your accountant.")}</p>
+        {online && store.docs.length > 0 && local.docs.length > 0 && <p className="hint">{T("นำข้อมูลในเครื่องขึ้นได้เฉพาะร้านที่ยังไม่มีเอกสาร (กันข้อมูลซ้ำ) — สมัครอีกบัญชีหรือสร้างร้านใหม่ถ้าต้องการ", "Local data can only be imported into an empty business (to avoid duplicates).")}</p>}
+        <p className="privacy">
+          {online
+            ? T("ข้อมูลเก็บบนเซิร์ฟเวอร์ของโปรเจกต์สาธิต (PostgreSQL) เข้าถึงได้เฉพาะสมาชิกของร้าน — เป็นงานพอร์ตโฟลิโอ ไม่รับประกันการเก็บรักษาข้อมูล ควรสำรองไฟล์ไว้ · ระบบนี้ช่วยออกเอกสาร ไม่ใช่คำแนะนำทางภาษี", "Data is stored on a demo server (PostgreSQL), visible only to members of this business — it's a portfolio project, keep your own backups · this tool prepares documents; it isn't tax advice.")
+            : T("ข้อมูลลูกค้าและเอกสารเก็บในเบราว์เซอร์เครื่องนี้เท่านั้น ไม่ถูกส่งไปที่ใด — สำรองไฟล์เป็นประจำ · ระบบนี้ช่วยออกเอกสาร ไม่ใช่คำแนะนำทางภาษี ควรตรวจกับนักบัญชี", "Data stays in this browser. Back up regularly. This tool prepares documents; it isn't tax advice — check with your accountant.")}
+        </p>
       </section>
     </div>
   );
